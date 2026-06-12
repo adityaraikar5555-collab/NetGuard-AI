@@ -1,0 +1,25 @@
+NSL-KDD Network Intrusion Detection System
+==================================================
+
+Training Accuracy : 0.999593165174939
+Testing Accuracy  : 0.9990871204604088
+Precision         : 0.9994878361075544
+Recall            : 0.9985502302575473
+F1 Score          : 0.9990188131905635
+ROC-AUC           : 0.9999923197464436
+
+Classification Report
+
+              precision    recall  f1-score   support
+
+      Normal       1.00      1.00      1.00     13469
+      Attack       1.00      1.00      1.00     11726
+
+    accuracy                           1.00     25195
+   macro avg       1.00      1.00      1.00     25195
+weighted avg       1.00      1.00      1.00     25195
+
+Confusion Matrix
+
+[[13463     6]
+ [   17 11709]]

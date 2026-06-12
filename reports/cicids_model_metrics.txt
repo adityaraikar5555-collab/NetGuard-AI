@@ -1,0 +1,13 @@
+
+Network Anomaly Detection using CICIDS2017
+Model: Random Forest Classifier
+
+Accuracy: 0.9989
+Precision: 0.9997
+Recall: 0.9989
+F1 Score: 0.9993
+ROC-AUC: 1.0000
+
+Training Accuracy: 0.9991
+Testing Accuracy: 0.9989
+Difference: 0.0002

@@ -1,0 +1,36 @@
+# Large files
+data/
+models/
+*.csv
+*.pkl
+.ipynb_checkpoints/
+__pycache__/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual Environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+
+# Dataset zip files
+*.zip
