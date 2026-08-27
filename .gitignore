@@ -1,34 +1,45 @@
-data/
-*.csv
-*.txt
-.ipynb_checkpoints/
-__pycache__/
-# Python
-__pycache__/
-*.pyc
-*.pyo
+# Secrets / local env
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Virtual Environment
+# Virtual environments
+.venv/
 venv/
 env/
 
-# IDE
-.vscode/
-.idea/
+# Python generated files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
 
-# OS files
+# IDE / Jupyter / OS
+.idea/
+.vscode/
+.ipynb_checkpoints/
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Logs
+# Logs / temp / archives
 *.log
-
-# Temporary files
 *.tmp
-
-# Dataset zip files
 *.zip
+
+# Large datasets — ignore folder contents so named fixtures can be un-ignored
+data/CICIDS-2017/*
+!data/CICIDS-2017/test_10_rows.csv
+!data/CICIDS-2017/test_attack_10_rows.csv
+!data/CICIDS-2017/_validation_sample.csv
+data/NSL-KDD/
+
+# Allow small test/validation fixtures
+!data/test/
+!data/test/**
+
+# RAG generated runtime artifacts (rebuild via ingestion)
+backend/rag/cache/
+backend/rag/vector_store/
