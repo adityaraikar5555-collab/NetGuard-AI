@@ -56,7 +56,7 @@ class RAGConfig:
 
     # Temperature and Generation
     TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-    MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "700"))
+    MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "1200"))
 
     # Hard wall-clock cap (seconds) on each live LLM call. When the provider is
     # slow or unreachable, the call gives up after this and falls through to the

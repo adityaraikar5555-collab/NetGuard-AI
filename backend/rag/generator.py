@@ -185,11 +185,16 @@ def build_offline_fallback(
             citations_section=citations,
         )
 
+
     if context:
         return (
-            "### Relevant Knowledge Base Information\n\n"
+            "### Knowledge Base Answer\n\n"
+            "The following information is based on the most relevant content "
+            "retrieved from the NetGuard AI knowledge base.\n\n"
             f"{context}\n\n"
-            "*Note: This summary is generated from available local documentation while the LLM service is offline.*"
+            "---\n\n"
+            "*LLM generation is currently unavailable. The response above "
+            "is grounded directly in the local NetGuard AI documentation.*"
         )
 
     return (
