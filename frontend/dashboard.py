@@ -51,6 +51,15 @@ except Exception:
 
 API_URL = "https://netguard-ai-nd5e.onrender.com"
 
+# ============================================================================
+# UPLOAD SIZE LIMITS
+# ============================================================================
+LIVE_TRAFFIC_MAX_MB = 25
+EXPLORER_MAX_MB = 20
+
+LIVE_TRAFFIC_MAX_BYTES = LIVE_TRAFFIC_MAX_MB * 1024 * 1024
+EXPLORER_MAX_BYTES = EXPLORER_MAX_MB * 1024 * 1024
+
 st.set_page_config(
     page_title="NetGuard AI | Network Security Operations Center",
     page_icon="🛡️",
@@ -679,6 +688,13 @@ st.markdown(
     [data-testid="stFileUploaderDropzoneInstructions"] * {{
         color: var(--text) !important;
     }}
+
+    /* Hide Streamlit's built-in max-size hint (e.g. "200MB per file • CSV") —
+       file-size limits are enforced per-uploader and shown in custom UI. */
+    [data-testid="stFileUploaderDropzoneInstructions"] small {{
+        display: none !important;
+    }}
+
 
     /* ================= HEADER ================= */
     .hero {{ padding: 6px 0 4px 0; position: relative; }}
@@ -1640,11 +1656,11 @@ def render_analyze_traffic():
             unsafe_allow_html=True,
         )
 
-    MAX_TRAFFIC_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
+    MAX_TRAFFIC_FILE_SIZE = LIVE_TRAFFIC_MAX_BYTES
 
     st.markdown(
-        '<div style="color:var(--muted); font-size:12px; font-family:var(--font-mono); '
-        'margin-bottom:4px;">Maximum file size: 25 MB</div>',
+        f'<div style="color:var(--muted); font-size:12px; font-family:var(--font-mono); '
+        f'margin-bottom:4px;">Maximum file size: {LIVE_TRAFFIC_MAX_MB} MB</div>',
         unsafe_allow_html=True,
     )
 
@@ -1653,8 +1669,13 @@ def render_analyze_traffic():
     )
 
     if uploaded_file is not None and uploaded_file.size > MAX_TRAFFIC_FILE_SIZE:
+        size_mb = uploaded_file.size / (1024 * 1024)
+        st.toast(f"🚫 Upload rejected: {uploaded_file.name} is {size_mb:.2f} MB. "
+                 f"The maximum allowed file size for Live Traffic is {LIVE_TRAFFIC_MAX_MB} MB.")
         st.markdown(
-            '<div class="danger-banner result-banner">❌ File too large. Live Traffic supports CSV files up to 25 MB.</div>',
+            f'<div class="danger-banner result-banner">⚠️ File too large! Maximum allowed size is '
+            f'{LIVE_TRAFFIC_MAX_MB} MB.<br>🚫 Upload rejected: {uploaded_file.name} is {size_mb:.2f} MB. '
+            f'The maximum allowed file size for Live Traffic is {LIVE_TRAFFIC_MAX_MB} MB.</div>',
             unsafe_allow_html=True,
         )
         return
@@ -2560,17 +2581,22 @@ def render_data_explorer():
         else:
             st.caption("Upload a CSV dataset below to begin visual exploration.")
     with exp_col2:
-        MAX_VISUALIZATION_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+        MAX_VISUALIZATION_FILE_SIZE = EXPLORER_MAX_BYTES
         st.markdown(
-            '<div style="color:var(--muted); font-size:12px; font-family:var(--font-mono); '
-            'margin-bottom:4px;">Maximum file size: 20 MB</div>',
+            f'<div style="color:var(--muted); font-size:12px; font-family:var(--font-mono); '
+            f'margin-bottom:4px;">Maximum file size: {EXPLORER_MAX_MB} MB</div>',
             unsafe_allow_html=True,
         )
         explorer_upload = st.file_uploader("Upload CSV for Explorer", type=["csv"], key="explorer_upload_bar",
                                            label_visibility="collapsed")
         if explorer_upload is not None and explorer_upload.size > MAX_VISUALIZATION_FILE_SIZE:
+            size_mb = explorer_upload.size / (1024 * 1024)
+            st.toast(f"🚫 Upload rejected: {explorer_upload.name} is {size_mb:.2f} MB. "
+                     f"The maximum allowed file size for Data Visualization Explorer is {EXPLORER_MAX_MB} MB.")
             st.markdown(
-                '<div class="danger-banner result-banner">❌ File too large. Data Visualization Explorer supports CSV files up to 20 MB.</div>',
+                f'<div class="danger-banner result-banner">⚠️ File too large! Maximum allowed size is '
+                f'{EXPLORER_MAX_MB} MB.<br>🚫 Upload rejected: {explorer_upload.name} is {size_mb:.2f} MB. '
+                f'The maximum allowed file size for Data Visualization Explorer is {EXPLORER_MAX_MB} MB.</div>',
                 unsafe_allow_html=True,
             )
         elif explorer_upload is not None:
