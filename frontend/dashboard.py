@@ -883,6 +883,27 @@ def analyze_file(uploaded_file, selected_dataset):
         return None, f"Request failed: {exc}"
 
 
+def get_uploaded_frame(uploaded_file):
+    """Parse an uploaded CSV once and reuse the DataFrame across Streamlit reruns.
+
+    The Live Traffic page re-executes on every widget interaction, and re-parsing a
+    ~70 MB CSV each rerun is significant overhead on the deployed dashboard. The frame
+    is cached in session_state keyed by file identity (name + size + last_modified) so
+    the full file is parsed only when a new/different file is uploaded.
+    """
+    key = f"traffic_frame_cache_{uploaded_file.name}_{uploaded_file.size}_{getattr(uploaded_file, 'last_modified', '')}"
+    cached = st.session_state.get(key)
+    if cached is not None:
+        return cached, None
+    try:
+        uploaded_file.seek(0)
+        df = pd.read_csv(uploaded_file)
+    except Exception as exc:
+        return None, exc
+    st.session_state[key] = df
+    return df, None
+
+
 def _first_present(d, candidates, default=None):
     if not isinstance(d, dict):
         return default
@@ -1624,11 +1645,10 @@ def render_analyze_traffic():
     )
 
     if uploaded_file is not None:
-        try:
-            df_preview = pd.read_csv(uploaded_file)
-        except Exception as exc:
+        df_preview, read_error = get_uploaded_frame(uploaded_file)
+        if read_error is not None:
             st.markdown(
-                f'<div class="danger-banner result-banner">⚠️ Unable to read CSV file: {exc}</div>',
+                f'<div class="danger-banner result-banner">⚠️ Unable to read CSV file: {read_error}</div>',
                 unsafe_allow_html=True,
             )
             df_preview = None
@@ -3010,6 +3030,70 @@ def _format_chat_source(source: dict) -> str:
     return "  \n".join(lines)
 
 
+OUT_OF_SCOPE_HEADER = "🔴 Outside Knowledge Base Scope"
+OUT_OF_SCOPE_MESSAGE = (
+    "I'm sorry, but I can only help with cybersecurity, network security, "
+    "intrusion detection, datasets, threat analysis, and related NetGuard AI topics."
+)
+
+# Distinctive substrings (lowercased) that mark a refusal / out-of-scope response.
+# The deployed backend returns success=True with a spurious source and has_evidence=True
+# for out-of-scope questions, so the refusal is detected from the answer text itself
+# rather than from retrieval metadata, which is unreliable for these cases.
+_REFUSAL_MARKERS = (
+    "can't help with that",
+    "cannot help with that",
+    "can't help with this",
+    "cannot help with this",
+    "can only help with",
+    "only help with cybersecurity",
+    "cannot help with this request",
+    "cannot help you with that",
+    "can't help you with that",
+    "am unable to help with that",
+    "i can help with cybersecurity, network traffic",
+)
+
+
+def is_out_of_scope_answer(answer):
+    if not answer:
+        return False
+    lower = str(answer).lower()
+    # Normalize Unicode curly quotes/apostrophes to ASCII so refusal phrasings like
+    # the deployed "can't help with that" (U+2019) are matched reliably.
+    lower = (
+        lower.replace("\u2019", "'")
+        .replace("\u2018", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+        .replace("\u00a0", " ")
+        .replace("\u202f", " ")
+    )
+    return any(marker in lower for marker in _REFUSAL_MARKERS)
+
+
+def render_chat_response(message):
+    """Render an assistant chat message, hiding grounded status/sources for refusals."""
+    content = message.get("content", "")
+    if is_out_of_scope_answer(content):
+        st.markdown(f"**{OUT_OF_SCOPE_HEADER}**\n\n{OUT_OF_SCOPE_MESSAGE}")
+        return
+
+    sources = message.get("sources", [])
+    has_evidence = message.get("has_evidence", False)
+
+    st.markdown(content)
+    st.caption(
+        f"{'🟢 Grounded in ' + str(len(sources)) + ' retrieved source(s).' if has_evidence else '🟡 No strong knowledge-base evidence was retrieved.'}"
+    )
+
+    if sources:
+        with st.expander(f"📚 Sources ({len(sources)})"):
+            for source in sources:
+                st.markdown(_format_chat_source(source))
+                st.divider()
+
+
 def ask_soc_ai(query: str):
     """Send a cybersecurity question to the FastAPI RAG chatbot."""
     try:
@@ -3089,14 +3173,10 @@ def render_soc_ai_assistant():
     for message in st.session_state.chat_messages:
         role = message.get("role")
         with st.chat_message("user" if role == "user" else "assistant"):
-            st.markdown(message.get("content", ""))
             if role == "assistant":
-                sources = message.get("sources", [])
-                if sources:
-                    with st.expander(f"📚 Sources ({len(sources)})"):
-                        for source in sources:
-                            st.markdown(_format_chat_source(source))
-                            st.divider()
+                render_chat_response(message)
+            else:
+                st.markdown(message.get("content", ""))
 
     query = st.chat_input("Ask NetGuard AI about network security...")
     if query:
@@ -3126,16 +3206,7 @@ def render_soc_ai_assistant():
                 retrieval_meta.get("has_evidence", result.get("has_evidence", False))
             )
 
-            st.markdown(answer)
-            st.caption(
-                f"{'🟢 Grounded in ' + str(len(sources)) + ' retrieved source(s).' if has_evidence else '🟡 No strong knowledge-base evidence was retrieved.'}"
-            )
-
-            if sources:
-                with st.expander(f"📚 Sources ({len(sources)})"):
-                    for source in sources:
-                        st.markdown(_format_chat_source(source))
-                        st.divider()
+            render_chat_response({"content": answer, "sources": sources, "has_evidence": has_evidence})
 
             st.session_state.chat_messages.append({
                 "role": "assistant",
