@@ -49,7 +49,7 @@ except Exception:
 # CONFIG & PAGE SETUP
 # ============================================================================
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "https://netguard-ai-nd5e.onrender.com"
 
 st.set_page_config(
     page_title="NetGuard AI | Network Security Operations Center",
