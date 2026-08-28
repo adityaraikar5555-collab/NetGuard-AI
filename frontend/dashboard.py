@@ -1640,9 +1640,24 @@ def render_analyze_traffic():
             unsafe_allow_html=True,
         )
 
+    MAX_TRAFFIC_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
+
+    st.markdown(
+        '<div style="color:var(--muted); font-size:12px; font-family:var(--font-mono); '
+        'margin-bottom:4px;">Maximum file size: 25 MB</div>',
+        unsafe_allow_html=True,
+    )
+
     uploaded_file = st.file_uploader(
         "Upload CSV", type=["csv"], key="traffic_upload", label_visibility="collapsed",
     )
+
+    if uploaded_file is not None and uploaded_file.size > MAX_TRAFFIC_FILE_SIZE:
+        st.markdown(
+            '<div class="danger-banner result-banner">❌ File too large. Live Traffic supports CSV files up to 25 MB.</div>',
+            unsafe_allow_html=True,
+        )
+        return
 
     if uploaded_file is not None:
         df_preview, read_error = get_uploaded_frame(uploaded_file)
@@ -2545,9 +2560,20 @@ def render_data_explorer():
         else:
             st.caption("Upload a CSV dataset below to begin visual exploration.")
     with exp_col2:
+        MAX_VISUALIZATION_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+        st.markdown(
+            '<div style="color:var(--muted); font-size:12px; font-family:var(--font-mono); '
+            'margin-bottom:4px;">Maximum file size: 20 MB</div>',
+            unsafe_allow_html=True,
+        )
         explorer_upload = st.file_uploader("Upload CSV for Explorer", type=["csv"], key="explorer_upload_bar",
                                            label_visibility="collapsed")
-        if explorer_upload is not None:
+        if explorer_upload is not None and explorer_upload.size > MAX_VISUALIZATION_FILE_SIZE:
+            st.markdown(
+                '<div class="danger-banner result-banner">❌ File too large. Data Visualization Explorer supports CSV files up to 20 MB.</div>',
+                unsafe_allow_html=True,
+            )
+        elif explorer_upload is not None:
             try:
                 df = pd.read_csv(explorer_upload)
                 st.session_state.explore_df = df
