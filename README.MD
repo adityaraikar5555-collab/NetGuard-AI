@@ -10,6 +10,8 @@
 ![RandomForest](https://img.shields.io/badge/Algorithm-Random%20Forest-green)
 ![RAG](https://img.shields.io/badge/LLM-RAG%20Assistant-a855f7)
 ![Status](https://img.shields.io/badge/Status-Completed-success)
+![Render](https://img.shields.io/badge/Backend%20Deployed-Render-46E3B7?logo=render)
+![Streamlit](https://img.shields.io/badge/Frontend%20Deployed-Streamlit%20Cloud-FF4B4B?logo=streamlit)
 
 ---
 
@@ -22,6 +24,7 @@
 5. [Datasets Used](#-datasets-used)
 6. [Machine Learning Pipeline](#-machine-learning-pipeline)
 7. [Model Performance](#-model-performance)
+7a. [Live Deployment](#-live-deployment)
 8. [RAG Knowledge Base](#-rag-knowledge-base-agentic-soc-assistant)
 9. [API Endpoints](#-api-endpoints)
 10. [Installation & Setup](#-installation--setup)
@@ -86,11 +89,11 @@ The system classifies traffic, computes **attack probability**, **confidence**, 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    STREAMLIT SOC DASHBOARD (Frontend)           │
+│            STREAMLIT SOC DASHBOARD (Frontend · Streamlit Cloud) │
 │   Overview · Live Traffic · Threat Detection · 3D Topology ·    │
 │   ML Insights · SOC AI Assistant · Dataset Analysis · Explorer   │
 └───────────────────────────────┬─────────────────────────────────┘
-                                │  HTTP (requests) 127.0.0.1:8000
+                                │  HTTPS (requests) netguard-ai-nd5e.onrender.com
 ┌───────────────────────────────▼─────────────────────────────────┐
 │                    FASTAPI BACKEND  (app.py)                     │
 │   /predict/cicids · /predict/nsl-kdd · /analyze/*  · /chat       │
@@ -111,7 +114,7 @@ The system classifies traffic, computes **attack probability**, **confidence**, 
 ```
 
 **Flow:**
-1. The **Streamlit UI** sends feature vectors or uploaded datasets to the **FastAPI backend**.
+1. The **Streamlit UI** (deployed on Streamlit Cloud) sends feature vectors or uploaded datasets to the **FastAPI backend** (deployed on Render).
 2. The backend routes to the **ML inference engine** (`NetworkPredictionEngine`), which loads the trained `.pkl` models, validates/pre-processes features, predicts, and computes risk + severity.
 3. The **SOC AI Assistant** retrieves relevant chunks from the RAG knowledge base, builds a grounded prompt, and calls a live LLM (or falls back to offline knowledge).
 4. Results are returned as JSON and rendered as charts, badges, and threat panels.
@@ -298,6 +301,22 @@ Metrics exported from the evaluation reports in `reports/`.
 
 ---
 
+## 🌍 Live Deployment
+
+The platform is **deployed and publicly accessible**:
+
+| Component | Platform | URL |
+|-----------|----------|-----|
+| **FastAPI Backend** | Render | [`https://netguard-ai-nd5e.onrender.com`](https://netguard-ai-nd5e.onrender.com) |
+| **API Docs (Swagger UI)** | Render | [`https://netguard-ai-nd5e.onrender.com/docs`](https://netguard-ai-nd5e.onrender.com/docs) |
+| **SOC Dashboard (Frontend)** | Streamlit Cloud | [`https://netguard-ai.streamlit.app`](https://netguard-ai.streamlit.app) |
+
+The live backend serves all endpoints described in [API Endpoints](#%F0%9F%8C%90-api-endpoints), including model predictions and the RAG SOC assistant. The streamlit dashboard hits this deployed Render API (see `frontend/api.py` and `API_URL` in `frontend/dashboard.py`), so **no local setup is required to try the live demo**.
+
+> **Note:** On free-tier hosts (Render / Streamlit) the services may go to sleep after inactivity; the first request after waking up may take a few extra seconds.
+
+---
+
 ## 🧠 RAG Knowledge Base (Agentic SOC Assistant)
 
 The **SOC AI Assistant** (`/chat`) answers cybersecurity questions using **Retrieval-Augmented Generation** over a curated local knowledge base at `backend/rag/documents/`.
@@ -338,7 +357,7 @@ The **SOC AI Assistant** (`/chat`) answers cybersecurity questions using **Retri
 
 ## 🌐 API Endpoints
 
-Primary backend: **`frontend/app.py`** (FastAPI, default `http://127.0.0.1:8000`).
+Primary backend: **`frontend/app.py`** (FastAPI). **Deployed URL:** `https://netguard-ai-nd5e.onrender.com` · Local (dev): `http://127.0.0.1:8000`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -356,7 +375,7 @@ Primary backend: **`frontend/app.py`** (FastAPI, default `http://127.0.0.1:8000`
 ### Example — CICIDS Prediction
 
 ```bash
-curl -X POST http://127.0.0.1:8000/predict/cicids \
+curl -X POST https://netguard-ai-nd5e.onrender.com/predict/cicids \
   -H "Content-Type: application/json" \
   -d '{"features": [0.0, ... 78 values ...]}'
 ```
@@ -364,7 +383,7 @@ curl -X POST http://127.0.0.1:8000/predict/cicids \
 ### Example — NSL-KDD Prediction
 
 ```bash
-curl -X POST http://127.0.0.1:8000/predict/nsl-kdd \
+curl -X POST https://netguard-ai-nd5e.onrender.com/predict/nsl-kdd \
   -H "Content-Type: application/json" \
   -d '{"features": [0.0, "tcp", "http", "SF", ... 41 values ...]}'
 ```
@@ -372,7 +391,7 @@ curl -X POST http://127.0.0.1:8000/predict/nsl-kdd \
 ### Example — Chat with SOC Assistant
 
 ```bash
-curl -X POST http://127.0.0.1:8000/chat \
+curl -X POST https://netguard-ai-nd5e.onrender.com/chat \
   -H "Content-Type: application/json" \
   -d '{"question": "How do I detect a DDoS attack?"}'
 ```
@@ -425,6 +444,12 @@ The platform runs fully **without** any API keys — the SOC assistant auto-fall
 ---
 
 ## ▶️ Running the Application
+
+> **🚀 Prefer the live demo?** The platform is already deployed and can be used immediately:
+> - **SOC Dashboard:** [`https://netguard-ai.streamlit.app`](https://netguard-ai.streamlit.app)
+> - **FastAPI Backend / API Docs:** [`https://netguard-ai-nd5e.onrender.com/docs`](https://netguard-ai-nd5e.onrender.com/docs)
+>
+> Skip straight to [Live Deployment](#-live-deployment). The steps below run the app **locally** for development.
 
 ### Step 1 — Start the FastAPI backend
 
@@ -494,91 +519,67 @@ Generated evaluation artifacts live in `reports/`.
 
 ## 🖼️ Web Application Screenshots
 
-> **Placeholder gallery.** To complete this section, run the application (see [Running the Application](#-running-the-application)), capture the screens listed below from the running **Streamlit dashboard** (`http://localhost:8501`) and/or the **FastAPI Swagger UI** (`http://127.0.0.1:8000/docs`), save the images under a new `screenshots/` folder, and fill in the relative paths below.
+Screenshots of the running **Streamlit dashboard** (`http://localhost:8501`). Categories 11 & 12 correspond to the **FastAPI** endpoints (`http://127.0.0.1:8000/docs` and `/api/status`); re-capture those from the running backend to complete the gallery.
 
 ### 1. Dashboard Overview (Home)
 Full dashboard landing view — hero header, live status pills, 3D spatial threat matrix, and the Overview page with its KPI cards.
 
-```text
 ![1 - Dashboard Overview](screenshots/01_dashboard_overview.png)
-```
 
 ### 2. Live Traffic Monitor
 The **Live Traffic** page — real-time flow feed and threat status panel.
 
-```text
 ![2 - Live Traffic Monitor](screenshots/02_live_traffic.png)
-```
 
 ### 3. Traffic Analytics
 The **Traffic Analytics** page — plotly charts (traffic volume, protocol distribution, time-series trends).
 
-```text
 ![3 - Traffic Analytics](screenshots/03_traffic_analytics.png)
-```
 
 ### 4. Threat Detection (Results)
 The **Threat Detection** page — threat status radar panel, severity badges, attack-rate statistics, and the prediction results table.
 
-```text
 ![4 - Threat Detection](screenshots/04_threat_detection.png)
-```
 
 ### 5. Network Topology (3D)
 The **Network Topology** page — interactive **3D neural/cybernetic topology visualizer** (WebGL/Canvas, drag to rotate).
 
-```text
 ![5 - Network Topology 3D](screenshots/05_network_topology_3d.png)
-```
 
 ### 6. ML Insights
 The **ML Insights** page — model info, feature importance, and inference telemetry for the selected dataset.
 
-```text
 ![6 - ML Insights](screenshots/06_ml_insights.png)
-```
 
 ### 7. SOC AI Assistant (RAG Chatbot)
 The **SOC AI Assistant** page — chat with the RAG-powered assistant on a cybersecurity question.
 
-```text
 ![7 - SOC AI Assistant](screenshots/07_soc_ai_assistant.png)
-```
 
 ### 8. Dataset Analysis
 The **Dataset Analysis** page — uploaded-file analysis summary, normal vs attack breakdown, and row-level predictions.
 
-```text
 ![8 - Dataset Analysis](screenshots/08_dataset_analysis.png)
-```
 
 ### 9. Data Visualization Explorer
 The **Data Visualization Explorer** page — histogram/bar chart explorer for any column of the uploaded dataset.
 
-```text
 ![9 - Data Visualization Explorer](screenshots/09_data_visualization_explorer.png)
-```
 
 ### 10. System Status
 The **System Status** page — API health, ML engine readiness, RAG knowledge-base index, and endpoint list.
 
-```text
 ![10 - System Status](screenshots/10_system_status.png)
-```
 
 ### 11. FastAPI Swagger UI (`/docs`)
 The auto-generated **FastAPI interactive API documentation** — all endpoints browsable and testable in the browser.
 
-```text
-![11 - FastAPI Swagger UI](screenshots/11_fastapi_swagger.png)
-```
+> ⏳ **Pending** — no screenshot captured yet. Capture `http://127.0.0.1:8000/docs` and save as `screenshots/11_fastapi_swagger.png`.
 
 ### 12. FastAPI `/api/status` — JSON
 Raw JSON response of the `/api/status` endpoint showing service/model/endpoint readiness.
 
-```text
-![12 - API Status JSON](screenshots/12_api_status.png)
-```
+> ⏳ **Pending** — no screenshot captured yet. Capture `http://127.0.0.1:8000/api/status` and save as `screenshots/12_api_status.png`.
 
 ### Recommended capture checklist
 
@@ -597,7 +598,7 @@ Raw JSON response of the `/api/status` endpoint showing service/model/endpoint r
 | 11 | `11_fastapi_swagger.png` | `http://127.0.0.1:8000/docs` | API docs |
 | 12 | `12_api_status.png` | `http://127.0.0.1:8000/api/status` | API JSON |
 
-> **Tip:** After adding the PNG files, replace each code-block placeholder above with the actual image tag (e.g. `![Dashboard Overview](screenshots/01_dashboard_overview.png)`) so the screenshots render inline.
+> **Tip:** Categories 11 & 12 are pending — capture those two endpoints from the running FastAPI backend (`http://127.0.0.1:8000/docs` and `/api/status`) and drop the PNGs into `screenshots/` as `11_fastapi_swagger.png` and `12_api_status.png` to complete the full 12-item gallery.
 
 ---
 
