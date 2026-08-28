@@ -207,6 +207,32 @@ def build_offline_fallback(
 # GEMINI
 # ============================================================
 
+def _gemini_answer_text(data: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract the generated text from a Gemini generateContent response, but only
+    when the generation completed normally (finishReason == STOP).
+
+    Gemini can return a 200 with a partial `text` when a generation is stopped
+    early by safety filters (SAFETY), the output token cap (MAX_TOKENS), or an
+    unspecified interruption (OTHER). Serving such fragments as the final answer
+    produces mid-sentence/truncated chat responses, so non-STOP generations are
+    rejected and the caller falls through to another model / the offline answer.
+    Missing finishReason (older schema) defaults to STOP.
+    """
+    candidates = data.get("candidates") or []
+    if not candidates:
+        return None
+    candidate = candidates[0]
+    finish_reason = candidate.get("finishReason") or "STOP"
+    parts = (candidate.get("content") or {}).get("parts") or []
+    text = parts[0].get("text", "").strip() if parts else ""
+    if not text:
+        return None
+    if finish_reason != "STOP":
+        return None
+    return text
+
+
 def _call_gemini(prompt: str, cfg, timeout: float = 15.0) -> Optional[str]:
     """
     Call Google Gemini using the REST API with ultra-fast models and automatic fallback.
@@ -268,20 +294,12 @@ def _call_gemini(prompt: str, cfg, timeout: float = 15.0) -> Optional[str]:
                 )
 
                 if response.status_code == 200:
-                    data = response.json()
-                    candidates = data.get("candidates", [])
-                    text = ""
-                    if candidates:
-                        content = candidates[0].get("content", {})
-                        parts = content.get("parts", [])
-                        if parts:
-                            text = parts[0].get("text", "")
-
+                    text = _gemini_answer_text(response.json())
                     if text:
                         print(f"[LLM] Gemini response generated using model={model}")
-                        result_box["answer"] = text.strip()
+                        result_box["answer"] = text
                         return
-                    print(f"[GEMINI] No text returned from model={model}")
+                    print(f"[GEMINI] No complete (finishReason==STOP) text from model={model}")
                 elif response.status_code in (429, 503):
                     # Provider overloaded / rate-limited and usually recovers
                     # within a second. Do a single quick retry, then fall
@@ -298,17 +316,10 @@ def _call_gemini(prompt: str, cfg, timeout: float = 15.0) -> Optional[str]:
                                 timeout=timeout,
                             )
                             if retry.status_code == 200:
-                                data = retry.json()
-                                candidates = data.get("candidates", [])
-                                text = ""
-                                if candidates:
-                                    content = candidates[0].get("content", {})
-                                    parts = content.get("parts", [])
-                                    if parts:
-                                        text = parts[0].get("text", "")
+                                text = _gemini_answer_text(retry.json())
                                 if text:
                                     print(f"[LLM] Gemini response generated using model={model}")
-                                    result_box["answer"] = text.strip()
+                                    result_box["answer"] = text
                                     return
                             print(f"[GEMINI RETRY] model={model} status={retry.status_code}")
                         except requests.exceptions.RequestException as error:
@@ -408,6 +419,12 @@ def _call_openai(prompt: str, cfg) -> Optional[str]:
 
         message = choices[0].get("message", {})
         text = message.get("content", "")
+
+        # Reject truncated generations so a cut-off answer is never returned.
+        finish_reason = choices[0].get("finish_reason") or "stop"
+        if finish_reason == "length":
+            print("[OPENAI ERROR] Response truncated (finish_reason=length).")
+            return None
 
         if not text:
             print("[OPENAI ERROR] Empty response.")
@@ -559,6 +576,11 @@ def _call_groq(prompt: str, cfg, timeout: float = 20.0) -> Optional[str]:
                 return None
             message = choices[0].get("message", {})
             text = message.get("content", "")
+            # Reject truncated generations so a cut-off answer is never returned.
+            finish_reason = choices[0].get("finish_reason") or "stop"
+            if finish_reason == "length":
+                print("[GROQ ERROR] Response truncated (finish_reason=length).")
+                return None
             if not text:
                 print("[GROQ ERROR] Empty response.")
                 return None
