@@ -28,6 +28,7 @@ contracts are modified by this file. app.py and api.py are unchanged.
 
 import math
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -617,6 +618,17 @@ st.markdown(
     }}
     .sidebar-title {{ font-family: var(--font-display); font-size: 19px; font-weight: 800; color: var(--heading); letter-spacing: 0.3px; }}
     .sidebar-subtitle {{ font-size: 10.5px; color: var(--muted); margin-top: 4px; letter-spacing: 0.4px; font-family: var(--font-mono); }}
+
+    .sidebar-creator {{
+        margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
+        display: flex; align-items: center; gap: 12px;
+    }}
+    .creator-avatar {{
+        width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+        border: 2px solid rgba(56,189,248,0.5); box-shadow: 0 0 10px rgba(56,189,248,0.25);
+    }}
+    .creator-name {{ font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--heading); }}
+    .creator-role {{ font-size: 10.5px; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); letter-spacing: 0.4px; }}
 
     .nav-eyebrow {{
         font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; color: var(--muted-2);
@@ -1480,6 +1492,23 @@ with st.sidebar:
     )
 
     st.caption("NetGuard AI · SOC v2.0")
+
+    creator_img = Path(__file__).resolve().parent / "assets" / "aditya_raikar.jpg"
+    if creator_img.exists():
+        import base64
+        creator_b64 = base64.b64encode(creator_img.read_bytes()).decode("ascii")
+        st.markdown(
+            f"""
+            <div class="sidebar-creator">
+                <img class="creator-avatar" src="data:image/jpeg;base64,{creator_b64}" alt="Aditya Raikar">
+                <div>
+                    <div class="creator-name">Aditya Raikar</div>
+                    <div class="creator-role">CREATOR · NETGUARD AI</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 # ============================================================================
 # HEADER (shown on every page)
