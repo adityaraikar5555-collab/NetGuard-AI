@@ -6,7 +6,7 @@
 #  Models + RAG knowledge base are loaded at startup.
 # ============================================================
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Avoid interactive prompts & bytecode caches
 ENV PYTHONDONTWRITEBYTECODE=1 \
