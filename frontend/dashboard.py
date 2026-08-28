@@ -84,7 +84,7 @@ SEVERITY_ICON = {
 }
 
 # ============================================================================
-# THEME SYSTEM — Dark (SOC Cyber Mode) & Light (Enterprise Mode)
+# THEME SYSTEM — Dark (SOC Cyber Mode)
 # ============================================================================
 
 THEMES = {
@@ -102,21 +102,6 @@ THEMES = {
         "input_bg": "rgba(17, 26, 46, 0.9)",
         "grid": "rgba(255, 255, 255, 0.07)",
         "plotly_template": "plotly_dark",
-    },
-    "Light": {
-        "bg": "#f3f6fb",
-        "surface": "rgba(255, 255, 255, 0.92)",
-        "surface2": "rgba(241, 245, 249, 0.90)",
-        "sidebar_bg": "#ffffff",
-        "border": "rgba(148, 163, 184, 0.35)",
-        "border_soft": "rgba(226, 232, 240, 0.9)",
-        "text": "#0f172a",
-        "heading": "#020617",
-        "muted": "#475569",
-        "muted2": "#64748b",
-        "input_bg": "#ffffff",
-        "grid": "rgba(0, 0, 0, 0.06)",
-        "plotly_template": "plotly_white",
     },
 }
 
@@ -186,7 +171,7 @@ VIZ_FIELDS = ["normal", "suspicious", "attack", "unknown", "primary", "secondary
 
 
 def get_theme():
-    return THEMES[st.session_state.theme_mode]
+    return THEMES["Dark"]
 
 
 def get_viz_colors():
@@ -231,7 +216,6 @@ def init_state():
         "explore_df": None,
         "explore_filename": None,
         "nav_page": "Overview",
-        "theme_mode": "Dark",
         "viz_preset": "Default SOC",
         "viz_custom": dict(VIZ_PRESETS["Default SOC"]),
         "custom_badge_colors": False,
@@ -265,14 +249,9 @@ def render_3d_hero():
     secondary_col = viz.get("secondary", "#a855f7")
     attack_col = viz.get("attack", "#ef4444")
     normal_col = viz.get("normal", "#10b981")
-    is_dark = st.session_state.theme_mode == "Dark"
-    bg_gradient = (
-        "radial-gradient(circle at 50% 50%, #0c1830 0%, #05070f 100%)"
-        if is_dark
-        else "radial-gradient(circle at 50% 50%, #ffffff 0%, #e2e8f0 100%)"
-    )
-    border_col = "rgba(56, 189, 248, 0.35)" if is_dark else "rgba(148, 163, 184, 0.45)"
-    text_col = "#e6ebf5" if is_dark else "#0f172a"
+    bg_gradient = "radial-gradient(circle at 50% 50%, #0c1830 0%, #05070f 100%)"
+    border_col = "rgba(56, 189, 248, 0.35)"
+    text_col = "#e6ebf5"
 
     hero_html = f"""
     <!DOCTYPE html>
@@ -635,23 +614,70 @@ st.markdown(
         margin: 16px 2px 6px 2px; text-transform: uppercase;
     }}
 
+    /* Do not assume any tag name (label/div/span) — target every direct option
+       row and every descendant of the confirmed radiogroup container instead. */
     div[data-testid="stSidebar"] div[role="radiogroup"] {{ gap: 3px; }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label {{
+    div[data-testid="stSidebar"] div[role="radiogroup"] > * {{
         padding: 9px 12px 9px 14px; border-radius: 8px; border-left: 3px solid transparent;
         transition: background 0.15s ease, border-color 0.15s ease;
+        display: flex; align-items: center; cursor: pointer;
     }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child {{ display: none; }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {{
-        font-family: var(--font-body); font-size: 13.5px; font-weight: 600; color: var(--muted);
+    /* Kill every possible visual form of the radio dot: the raw input, and BaseWeb's
+       own styled dot wrapper (Streamlit renders radios via BaseWeb, which marks the
+       dot element with data-baseweb="radio" regardless of the surrounding tag). */
+    div[data-testid="stSidebar"] div[role="radiogroup"] input[type="radio"],
+    div[data-testid="stSidebar"] div[role="radiogroup"] [data-baseweb="radio"] {{
+        display: none !important;
     }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label:hover {{ background: var(--surface-2); }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {{ color: var(--text); }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) {{
+    /* Force text color on literally every descendant of the radiogroup — no tag-name
+       assumption at all, so this can't silently no-op again like the label-based rule did. */
+    div[data-testid="stSidebar"] div[role="radiogroup"] * {{
+        font-family: var(--font-body); font-size: 13.5px; font-weight: 600;
+        color: var(--muted) !important;
+    }}
+    div[data-testid="stSidebar"] div[role="radiogroup"] > *:hover {{ background: var(--surface-2); }}
+    div[data-testid="stSidebar"] div[role="radiogroup"] > *:hover * {{ color: var(--text) !important; }}
+    div[data-testid="stSidebar"] div[role="radiogroup"] > *:has(input:checked) {{
         background: linear-gradient(90deg, rgba(56,189,248,0.18), rgba(168,85,247,0.03));
         border-left: 3px solid var(--signal);
     }}
-    div[data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) div[data-testid="stMarkdownContainer"] p {{
-        color: var(--heading); font-weight: 700;
+    div[data-testid="stSidebar"] div[role="radiogroup"] > *:has(input:checked) * {{
+        color: var(--heading) !important; font-weight: 700;
+    }}
+
+    /* ================= GLOBAL NATIVE-WIDGET TEXT FIX (Dark) =================
+       Streamlit's built-in widget labels (selectbox, slider, checkbox, expander,
+       tabs, and any radiogroup outside the sidebar) always render using the fixed
+       textColor from .streamlit/config.toml. Forcing these to var(--text)/var(--muted)
+       guarantees readable text in Dark mode.
+       Scoped strictly to Streamlit's own testids — never touches our custom HTML. */
+    [data-testid="stWidgetLabel"],
+    [data-testid="stWidgetLabel"] * {{
+        color: var(--text) !important;
+    }}
+    [data-testid="stExpander"] summary,
+    [data-testid="stExpander"] summary * {{
+        color: var(--text) !important;
+    }}
+    [data-testid="stTabs"] button,
+    [data-testid="stTabs"] button * {{
+        color: var(--muted) !important;
+    }}
+    [data-testid="stTabs"] button[aria-selected="true"],
+    [data-testid="stTabs"] button[aria-selected="true"] * {{
+        color: var(--heading) !important;
+    }}
+    [data-testid="stCheckbox"] label,
+    [data-testid="stCheckbox"] label * {{
+        color: var(--text) !important;
+    }}
+    div[role="radiogroup"]:not(section[data-testid="stSidebar"] div[role="radiogroup"]) label,
+    div[role="radiogroup"]:not(section[data-testid="stSidebar"] div[role="radiogroup"]) label * {{
+        color: var(--text) !important;
+    }}
+    [data-testid="stFileUploaderDropzoneInstructions"],
+    [data-testid="stFileUploaderDropzoneInstructions"] * {{
+        color: var(--text) !important;
     }}
 
     /* ================= HEADER ================= */
@@ -1376,7 +1402,6 @@ with st.sidebar:
         if st.button("↺ Reset Appearance to Defaults", use_container_width=True):
             st.session_state.viz_preset = "Default SOC"
             st.session_state.viz_custom = dict(VIZ_PRESETS["Default SOC"])
-            st.session_state.theme_mode = "Dark"
             st.session_state.custom_badge_colors = False
             st.session_state.fx_3d_bg = True
             st.session_state.fx_animations = True
@@ -1439,12 +1464,7 @@ with header_col3:
         "neutral",
     )
 with header_col4:
-    st.selectbox(
-        "Theme", ["Dark", "Light"],
-        index=["Dark", "Light"].index(st.session_state.theme_mode),
-        key="theme_mode", label_visibility="collapsed",
-        format_func=lambda x: "🌙 Dark SOC" if x == "Dark" else "☀️ Light Clean",
-    )
+    status_pill("🌙 Dark SOC Mode", "neutral")
 
 # Render the interactive 3D WebGL Neural Matrix Hero
 render_3d_hero()
@@ -3155,7 +3175,7 @@ def render_about():
           directly on an uploaded file — nothing is fabricated. Unavailable values are shown as **N/A**.
         - **Spatial 3D Topology:** Network host graphs and communication lines are constructed directly
           from real flow data.
-        - **Dynamic Accessibility:** Complete support for Dark SOC mode, Light Clean mode, and Colorblind-Safe palettes.
+        - **Dynamic Accessibility:** Complete support for Dark SOC mode and Colorblind-Safe palettes.
         """
     )
 
