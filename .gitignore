@@ -42,4 +42,3 @@ data/NSL-KDD/
 
 # RAG generated runtime artifacts (rebuild via ingestion)
 backend/rag/cache/
-backend/rag/vector_store/
