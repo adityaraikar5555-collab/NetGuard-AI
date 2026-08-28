@@ -690,8 +690,16 @@ st.markdown(
     }}
 
     /* Hide Streamlit's built-in max-size hint (e.g. "200MB per file • CSV") —
-       file-size limits are enforced per-uploader and shown in custom UI. */
-    [data-testid="stFileUploaderDropzoneInstructions"] small {{
+       file-size limits are enforced per-uploader and shown in custom UI.
+       Current Streamlit builds render this hint via a styled-component
+       (StyledFileDropzoneInstructionsSubtext), not a <small> tag, so a
+       `small` descendant selector no longer matches. The
+       [data-testid="stFileUploaderDropzoneInstructions"] container renders
+       ONLY this size/type hint (confirmed against Streamlit's
+       FileDropzoneInstructions.tsx source) — no drag-and-drop label and no
+       "Browse files" button live inside it — so hiding the whole container
+       is safe and removes just this text. */
+    [data-testid="stFileUploaderDropzoneInstructions"] {{
         display: none !important;
     }}
 
