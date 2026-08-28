@@ -82,7 +82,7 @@ class EmbeddingEngine:
             # Character + word n-grams for cybersecurity terms (e.g., "syn-ack", "slowloris", "dst_host")
             self._tfidf_vectorizer = TfidfVectorizer(
                 ngram_range=(1, 2),
-                max_features=1024,
+                max_features=self.config.EMBEDDING_DIMENSION,
                 sublinear_tf=True,
                 token_pattern=r"(?u)\b\w[\w-]+\w\b|\b\w+\b",
             )

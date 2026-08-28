@@ -29,6 +29,44 @@ class RAGRetriever:
         self.embedding_engine = embedding_engine or EmbeddingEngine(self.config)
         self.vector_store = vector_store or PersistentVectorStore(self.config)
 
+        self._ensure_tfidf_vectorizer()
+
+    def _ensure_tfidf_vectorizer(self):
+        """Ensure the TF-IDF vectorizer matches the stored index before retrieval."""
+        if not isinstance(self.embedding_engine, EmbeddingEngine):
+            return
+        provider = str(self.embedding_engine.provider).lower()
+        if provider not in ("tfidf", "auto"):
+            return
+        if len(self.vector_store.chunks) == 0:
+            return
+
+        expected_dim = self.vector_store.embeddings.shape[1]
+        vectorizer = self.embedding_engine._tfidf_vectorizer
+
+        # If the vectorizer is missing or would project queries into a
+        # different dimension, re-fit it on the exact stored corpus so query
+        # embeddings live in the same vector space as the persisted index.
+        # (The persisted vectorizer is a gitignored runtime artifact and may
+        # be absent on deployments, causing a fresh fit-on-query -> wrong dim.)
+        needs_refit = vectorizer is None
+        if not needs_refit:
+            try:
+                probe_dim = vectorizer.transform(["probe"]).shape[1]
+                needs_refit = probe_dim != expected_dim
+            except Exception:
+                needs_refit = True
+
+        if needs_refit:
+            corpus_texts = [c.text for c in self.vector_store.chunks]
+            self.embedding_engine.fit_corpus(corpus_texts)
+            logger.info(
+                "Re-fitted TF-IDF vectorizer on %d stored chunks "
+                "(expected dim %d).",
+                len(corpus_texts),
+                expected_dim,
+            )
+
     def normalize_query(self, query: str) -> str:
         """Normalizes and enriches cybersecurity queries for enhanced semantic recall."""
         if not query:
