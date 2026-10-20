@@ -78,9 +78,20 @@ The system classifies traffic, computes **attack probability**, **confidence**, 
   - **Hierarchical Multi-Agent Swarm**: Four specialized agents (`SupervisorAgent`, `ForensicsAgent`, `ThreatIntelAgent`, `RemediationAgent`) collaborating to produce STIX 2.1 incident bundles and blast-radius validated containment scripts.
   - **Multi-LLM Failover**: Seamless auto-failover across Gemini, Groq, and deterministic policy execution with zero-crash guarantees.
 
+- **Live PCAP / Wireshark File Ingestion & Deep Packet Inspection (DPI)**
+  - Built-in pure-Python binary PCAP/PCAPNG packet parser (`src/pcap_extractor.py`).
+  - Reconstructs raw packets into bidirectional 5-tuple flows and extracts 28 statistical flow features (duration, packet counts, bytes/sec, SYN/FIN/RST flags, inter-arrival times).
+  - Direct integration into `POST /analyze/pcap` for zero-setup Wireshark traffic analysis.
+
+- **Interactive MITRE ATT&CK® Enterprise Matrix Navigator**
+  - Full Cyber Kill Chain matrix spanning all 14 official enterprise tactics (`TA0043` through `TA0040`).
+  - Dynamic threat heatmaps with active technique alert badges and glow borders.
+  - Deep Technique Inspector surfacing threat actors (APTs), detection signatures, and automated SOAR playbooks (`iptables` + Snort rules).
+  - Available as a dedicated command-center page (`🛡️ MITRE ATT&CK Matrix`) and contextual tab in `Threat Detection`.
+
 - **Rich Streamlit SOC Dashboard**
   - Dark cyber / light enterprise **theme system** with glassmorphism + neon glow.
-  - 13 navigation pages: Home, Overview, Live Traffic, Traffic Analytics, Threat Detection, **Agentic SOC Copilot (3 War-Room Tabs)**, Network Topology (3D), ML Insights, SOC AI Assistant, Dataset Analysis, Data Visualization Explorer, Prediction History, System Status & About.
+  - 14 navigation pages: Home, Overview, Live Traffic, Traffic Analytics, Threat Detection, **🛡️ MITRE ATT&CK Matrix**, **⚡ Agentic SOC Copilot (3 War-Room Tabs)**, Network Topology (3D), ML Insights, SOC AI Assistant, Dataset Analysis, Data Visualization Explorer, Prediction History, System Status & About.
   - **Interactive 3D neural topology visualizer** (WebGL/Canvas).
   - Severity badges, threat status radar panels, KPI metric cards, live SOC activity feed.
   - 10+ color presets including **Colorblind-Safe (Okabe-Ito)**.

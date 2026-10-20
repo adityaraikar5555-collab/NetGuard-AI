@@ -136,6 +136,7 @@ NAV_PAGES = [
     ("🌐", "Live Traffic"),
     ("📊", "Traffic Analytics"),
     ("🚨", "Threat Detection"),
+    ("🛡️", "MITRE ATT&CK Matrix"),
     ("⚡", "Agentic SOC Copilot"),
     ("🕸️", "Network Topology"),
     ("🤖", "ML Insights"),
@@ -1521,16 +1522,22 @@ def push_timeline(event: str, detail: str = "", kind: str = "info"):
 
 
 def analyze_file(uploaded_file, selected_dataset):
-    endpoint = (
-        f"{API_URL}/analyze/cicids"
-        if selected_dataset == "CICIDS-2017"
-        else f"{API_URL}/analyze/nsl-kdd"
-    )
+    is_pcap = str(uploaded_file.name).lower().endswith((".pcap", ".pcapng"))
+    if is_pcap:
+        endpoint = f"{API_URL}/analyze/pcap"
+        mime_type = "application/vnd.tcpdump.pcap"
+    else:
+        endpoint = (
+            f"{API_URL}/analyze/cicids"
+            if selected_dataset == "CICIDS-2017"
+            else f"{API_URL}/analyze/nsl-kdd"
+        )
+        mime_type = "text/csv"
     try:
         uploaded_file.seek(0)
         response = requests.post(
             endpoint,
-            files={"file": (uploaded_file.name, uploaded_file, "text/csv")},
+            files={"file": (uploaded_file.name, uploaded_file, mime_type)},
             timeout=300,
         )
         if response.status_code == 200:
@@ -1590,7 +1597,7 @@ def normalize_result(raw, dataset_name):
 
     filename = raw.get("filename", "Unknown")
 
-    if dataset_name == "CICIDS-2017":
+    if dataset_name == "CICIDS-2017" or "summary" in raw or str(raw.get("dataset", "")).startswith("PCAP"):
         summary = raw.get("summary", {})
         total = summary.get("total_flows")
         normal = summary.get("benign_flows")
@@ -3041,6 +3048,16 @@ def open_investigation_dialog(row_dict, dataset_name):
 def render_threat_detection():
     section_header("🚨 Threat Alert Center", "Severity classification, filtering, and per-alert investigation.")
 
+    tab_alerts, tab_matrix = st.tabs(["🚨 Alert Workstation & Triage", "🛡️ MITRE ATT&CK® Matrix Heatmap"])
+
+    with tab_matrix:
+        render_mitre_matrix(is_embedded=True)
+
+    with tab_alerts:
+        _render_threat_alerts_workstation()
+
+
+def _render_threat_alerts_workstation():
     result = st.session_state.analysis_result
     if not result or result.get("predictions_df") is None or result.get("predictions_df").empty:
         empty_state(
@@ -3198,6 +3215,244 @@ def render_threat_detection():
         file_name=f"netguard_alerts_{result.get('dataset', 'dataset').lower().replace('-', '')}.csv",
         mime="text/csv", use_container_width=True,
     )
+
+
+# ============================================================================
+# MITRE ATT&CK® ENTERPRISE MATRIX NAVIGATOR DATABASE & RENDERER
+# ============================================================================
+
+try:
+    from src.mitre_database import MITRE_TACTICS_DB
+except ImportError:
+    from mitre_database import MITRE_TACTICS_DB
+
+
+
+def render_mitre_matrix(is_embedded=False):
+    """
+    Renders the Interactive MITRE ATT&CK Enterprise Matrix Navigator.
+    Maps live analyzed session threats across the 14 Enterprise Tactics with glowing heatmap
+    telemetry and instant SOAR containment playbooks.
+    """
+    if not is_embedded:
+        section_header(
+            "🛡️ MITRE ATT&CK® Enterprise Matrix Navigator",
+            "Interactive adversarial kill-chain mapping with live detection telemetry and SOAR playbooks.",
+        )
+
+    # 1. Inspect active session analysis for live threat correlation
+    result = st.session_state.get("analysis_result")
+    active_threats_df = None
+    detected_tech_counts = {}
+    detected_tech_flows = {}
+
+    if result and result.get("predictions_df") is not None and not result.get("predictions_df").empty:
+        pdf = result.get("predictions_df")
+        att_flag = detect_attack_flag(pdf)
+        if att_flag is not None:
+            active_threats_df = pdf[att_flag].copy()
+        else:
+            active_threats_df = pdf[pdf.get("prediction", "").astype(str).str.lower().ne("normal")].copy()
+
+    if active_threats_df is not None and not active_threats_df.empty:
+        for _, row in active_threats_df.iterrows():
+            row_dict = row.to_dict()
+            pred_text = str(row_dict.get("prediction", "")).lower()
+            family_text = str(row_dict.get("attack_family", "")).lower()
+            mitre_id = str(row_dict.get("mitre_id", ""))
+            combined = f"{pred_text} {family_text} {str(row_dict.get('attack_type', '')).lower()}"
+
+            for tactic in MITRE_TACTICS_DB:
+                for tech in tactic["techniques"]:
+                    t_id = tech["id"]
+                    is_match = False
+                    if mitre_id and mitre_id == t_id:
+                        is_match = True
+                    elif any(kw in combined for kw in tech.get("trigger_keywords", [])):
+                        is_match = True
+
+                    if is_match:
+                        detected_tech_counts[t_id] = detected_tech_counts.get(t_id, 0) + 1
+                        detected_tech_flows.setdefault(t_id, []).append(row_dict)
+
+    # Summary KPI row
+    total_techniques = sum(len(t["techniques"]) for t in MITRE_TACTICS_DB)
+    active_tech_count = len(detected_tech_counts)
+    active_tactics = set()
+    for t in MITRE_TACTICS_DB:
+        for tech in t["techniques"]:
+            if tech["id"] in detected_tech_counts:
+                active_tactics.add(t["tactic_name"])
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        metric_card("🛡️", "Tactics Triggered", f"{len(active_tactics)} of {len(MITRE_TACTICS_DB)}", "metric-danger" if active_tactics else "metric-safe")
+    with m2:
+        metric_card("🎯", "Active Techniques", f"{active_tech_count} of {total_techniques}", "metric-danger" if active_tech_count else "metric-safe")
+    with m3:
+        top_tech = max(detected_tech_counts, key=detected_tech_counts.get) if detected_tech_counts else "None"
+        metric_card("🔥", "Top Attack Vector", f"{top_tech}" if top_tech != "None" else "No Active Flags", "metric-danger" if top_tech != "None" else "")
+    with m4:
+        metric_card("🌐", "MITRE Coverage", "Enterprise v14.1", "")
+
+    if not detected_tech_counts:
+        st.info("💡 **Baseline Mode:** No live attacks detected in current session. Run **Live Traffic** or upload a capture to light up the MITRE heatmap.")
+
+    st.write("")
+
+    # Filter Toolbar
+    f_col1, f_col2 = st.columns([2, 1])
+    with f_col1:
+        tactic_names = ["All Tactics"] + [f"{t['icon']} {t['tactic_name']} ({t['tactic_id']})" for t in MITRE_TACTICS_DB]
+        selected_tactic_filter = st.selectbox("Filter by Kill-Chain Tactic", tactic_names, key=f"mitre_tac_filter_{is_embedded}")
+    with f_col2:
+        only_active = st.checkbox("Show Flagged Threats Only", value=False, key=f"mitre_active_only_{is_embedded}")
+
+    # Matrix Grid Display
+    tactics_to_show = MITRE_TACTICS_DB
+    if selected_tactic_filter != "All Tactics":
+        tactics_to_show = [t for t in MITRE_TACTICS_DB if t["tactic_name"] in selected_tactic_filter]
+
+    st.write("")
+    st.markdown("#### 🗺️ Enterprise Attack Surface Grid")
+
+    # Render tactics in responsive columns
+    num_cols = min(4, len(tactics_to_show))
+    if num_cols > 0:
+        grid_cols = st.columns(num_cols)
+        for idx, tactic in enumerate(tactics_to_show):
+            col_idx = idx % num_cols
+            with grid_cols[col_idx]:
+                has_active_in_tac = any(tech["id"] in detected_tech_counts for tech in tactic["techniques"])
+                tac_border = "border: 1px solid rgba(239, 68, 68, 0.6); box-shadow: 0 0 10px rgba(239,68,68,0.2);" if has_active_in_tac else "border: 1px solid var(--border-soft);"
+                st.markdown(
+                    f"""
+                    <div class="glass-panel" style="padding:12px; margin-bottom:12px; {tac_border}">
+                        <div style="font-size:14px; font-weight:700; color:var(--heading);">
+                            {tactic['icon']} {tactic['tactic_name']}
+                        </div>
+                        <div style="font-family:var(--font-mono); font-size:11px; color:var(--signal);">
+                            {tactic['tactic_id']}
+                        </div>
+                        <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+                            {tactic['description']}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                for tech in tactic["techniques"]:
+                    tech_id = tech["id"]
+                    count = detected_tech_counts.get(tech_id, 0)
+                    if only_active and count == 0:
+                        continue
+
+                    is_flagged = count > 0
+                    card_style = (
+                        "background: rgba(239, 68, 68, 0.08); border: 1px solid #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.25);"
+                        if is_flagged
+                        else "background: var(--surface); border: 1px solid var(--border-soft); opacity: 0.85;"
+                    )
+                    badge_html = f'<span style="background:#ef4444; color:#fff; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700;">🚨 {count} DETECTIONS</span>' if is_flagged else '<span style="color:var(--muted); font-size:10px;">⚪ INACTIVE</span>'
+
+                    st.markdown(
+                        f"""
+                        <div class="glass-panel" style="padding:10px; margin-bottom:8px; {card_style}">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--signal);">{tech['id']}</span>
+                                {badge_html}
+                            </div>
+                            <div style="font-weight:600; font-size:13px; color:var(--heading); margin:4px 0 2px 0;">{tech['name']}</div>
+                            <div style="font-size:11px; color:var(--muted);">{tech.get('sub', '')}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+    st.divider()
+
+    # Deep Technique Inspector
+    st.markdown("### 🔬 Technique Defense & SOAR Containment Inspector")
+    st.caption("Select any MITRE ATT&CK technique to inspect adversary intelligence, detection signatures, and automated containment scripts.")
+
+    all_tech_options = []
+    for tactic in MITRE_TACTICS_DB:
+        for tech in tactic["techniques"]:
+            cnt = detected_tech_counts.get(tech["id"], 0)
+            flag = f"🚨 [{cnt} Flagged] " if cnt > 0 else "⚪ "
+            all_tech_options.append((tech["id"], f"{flag}{tech['id']} · {tech['name']} ({tactic['tactic_name']})"))
+
+    default_idx = 0
+    if detected_tech_counts:
+        first_active = next(iter(detected_tech_counts))
+        for i, (tid, _) in enumerate(all_tech_options):
+            if tid == first_active:
+                default_idx = i
+                break
+
+    sel_label = st.selectbox(
+        "Choose Technique to Inspect",
+        [lbl for _, lbl in all_tech_options],
+        index=default_idx,
+        key=f"mitre_inspect_sel_{is_embedded}",
+    )
+    selected_tech_id = next((tid for tid, lbl in all_tech_options if lbl == sel_label), all_tech_options[0][0])
+
+    # Find the technique object
+    active_tech_obj = None
+    active_tactic_obj = None
+    for tactic in MITRE_TACTICS_DB:
+        for tech in tactic["techniques"]:
+            if tech["id"] == selected_tech_id:
+                active_tech_obj = tech
+                active_tactic_obj = tactic
+                break
+
+    if active_tech_obj:
+        t_col1, t_col2 = st.columns([1.2, 1])
+        with t_col1:
+            st.markdown(f"#### 🛡️ {active_tech_obj['name']} (`{active_tech_obj['id']}`)")
+            st.markdown(f"**Tactic Category:** `{active_tactic_obj['tactic_name']}` ({active_tactic_obj['tactic_id']})")
+            st.markdown(f"**Sub-Technique:** `{active_tech_obj.get('sub', active_tech_obj['id'])}`")
+            st.markdown(f"**Description:** {active_tech_obj['description']}")
+            st.markdown(
+                f'<a href="https://attack.mitre.org/techniques/{active_tech_obj["id"]}/" target="_blank" style="text-decoration:none;">'
+                f'<button style="background:var(--primary); color:#fff; border:none; padding:6px 14px; border-radius:6px; font-weight:600; cursor:pointer; font-size:12px; margin-top:8px;">'
+                f'↗ View on Official MITRE ATT&CK®'
+                f'</button></a>',
+                unsafe_allow_html=True,
+            )
+
+            st.write("")
+            st.markdown("##### 👥 Known Threat Actors & APTs")
+            actors_html = " ".join(f'<span style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.4); padding:3px 8px; border-radius:4px; font-size:11.5px; font-family:var(--font-mono); margin-right:6px;">{act}</span>' for act in active_tech_obj.get("actors", []))
+            st.markdown(f"<div>{actors_html}</div>", unsafe_allow_html=True)
+
+            st.write("")
+            st.markdown("##### 🔍 NetGuard AI ML Detection Heuristics")
+            st.info(active_tech_obj.get("detection", "Monitored via flow statistics and tree ensemble classifiers."))
+
+        with t_col2:
+            st.markdown("#### ⚡ SOAR Containment Playbook")
+            st.markdown("**1. Linux iptables Rule:**")
+            st.code(active_tech_obj.get("iptables", "sudo iptables -A INPUT -j DROP"), language="bash")
+
+            st.markdown("**2. Snort / Suricata IDS Signature:**")
+            st.code(active_tech_obj.get("snort", "alert ip any any -> any any (msg:NetGuard Alert; sid:10001;)"), language="text")
+
+            st.markdown("**3. Recommended SOC Mitigation:**")
+            st.success(active_tech_obj.get("mitigation", "Isolate affected host and review firewall egress logs."))
+
+        # Show correlated live flows if present
+        matching_flows = detected_tech_flows.get(selected_tech_id, [])
+        if matching_flows:
+            st.write("")
+            with st.expander(f"👁️ View Correlated Network Flows ({len(matching_flows)} Flows Detected in Session)", expanded=True):
+                m_df = pd.DataFrame(matching_flows)
+                display_cols = [c for c in ["row", "prediction", "Source IP", "Destination IP", "Destination Port", "Protocol", "attack_probability", "Severity"] if c in m_df.columns]
+                st.dataframe(m_df[display_cols if display_cols else m_df.columns], use_container_width=True, hide_index=True)
+
 
 
 # ============================================================================
@@ -6538,6 +6793,7 @@ PAGES = {
     "Live Traffic": render_analyze_traffic,
     "Traffic Analytics": render_traffic_analytics,
     "Threat Detection": render_threat_detection,
+    "MITRE ATT&CK Matrix": render_mitre_matrix,
     "Agentic SOC Copilot": render_agentic_soc_copilot,
     "Network Topology": render_network_topology,
     "ML Insights": render_ml_insights,

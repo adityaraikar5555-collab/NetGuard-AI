@@ -63,3 +63,12 @@ def swarm_agent(context: dict, base_url: str = None):
     return response.json()
 
 
+def analyze_pcap_file(file_bytes: bytes, filename: str = "capture.pcap", max_packets: int = 15000, base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/") + "/analyze/pcap"
+    files = {"file": (filename, file_bytes, "application/vnd.tcpdump.pcap")}
+    params = {"max_packets": max_packets}
+    response = requests.post(url, files=files, params=params, timeout=120)
+    response.raise_for_status()
+    return response.json()
+
+

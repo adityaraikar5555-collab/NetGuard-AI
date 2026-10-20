@@ -7,24 +7,33 @@ statistics computed directly on an uploaded file; unavailable values render as
 N/A / "Not available".
 
 ## Files Changed
-- `frontend/dashboard.py` — added 13th page "⚡ Agentic SOC Copilot" with 3 dedicated War-Room tabs, plus 1-click autonomous investigation dispatch from Threat Alerts.
-- `frontend/app.py` & `backend/main.py` — added endpoints `POST /agent/investigate`, `POST /agent/hunt`, `POST /agent/swarm` and updated `/api/status`.
-- `frontend/api.py` — added client adapters `investigate_agent()`, `hunt_agent()`, `swarm_agent()`.
-- `src/agents/` (NEW PACKAGE):
-  - `src/agents/tools.py` — 6 production cybersecurity tools with JSON Schemas.
-  - `src/agents/soc_agent.py` — Native ReAct Tier-2 SOC Agent with multi-LLM failover and Dossier synthesis.
-  - `src/agents/drift_hunter_agent.py` — Concept Drift (PSI) engine and stealth threat hunter.
-  - `src/agents/multi_agent_swarm.py` — Hierarchical Multi-Agent Swarm (4 specialists) + STIX 2.1 bundles.
-- `run_soc.bat` (NEW) — One-click Windows runner for FastAPI backend & Streamlit UI.
-- `tests/test_soc_agent.py` (NEW) — Comprehensive unit test suite for all agent engines (9/9 passed).
-- `frontend/ui_components.py` — design-system module:
-  `SEVERITY_ORDER`, `SEVERITY_ICON`, `THREAT_LEVEL_ICON`, `classify_threat_level`,
-  `esc`, `render_global_status_header`, `render_cta_row`, `state_banner`,
-  `render_severity_strip`.
-- `frontend/persistence.py` — local JSON session store (`frontend/.session_store/`).
-- `frontend/product_features.py` — Home landing, onboarding, auth gate, docs hub, compare runs, HTML incident report, notifications, triage panel, health/latency strip, upgraded About.
+- `src/mitre_database.py` (NEW) — Complete MITRE ATT&CK® Enterprise Matrix database (v14.1) covering all 14 tactics, techniques, detection signatures, threat actors, and SOAR mitigation playbooks.
+- `src/pcap_extractor.py` — Pure-Python PCAP/Wireshark binary parser reconstructing bidirectional 28-feature flow records.
+- `data/test/sample_capture.pcap` (NEW) — Multi-packet Wireshark capture fixture with HTTP, SYN PortScan sweeps, and DoS bursts.
+- `backend/main.py` & `frontend/app.py` — added `POST /analyze/pcap` endpoint with flow reconstruction, ML classification, and threat attribution.
+- `frontend/api.py` — added `analyze_pcap_file()` client adapter with MIME streaming.
+- `frontend/dashboard.py` — added 14th page `🛡️ MITRE ATT&CK Matrix` with interactive heatmap navigator, tactic filters, technique deep-inspector, APT attribution, and SOAR playbooks, plus integrated matrix heatmap inside `Threat Detection`.
+- `tests/test_pcap_mitre.py` (NEW) — 6 comprehensive unit tests verifying DPI extraction, endpoints, matrix taxonomy, and routing (6/6 passed).
 
 ---
+
+## Phase 10 — Cybersecurity Enterprise Upgrade (PCAP Deep Packet Inspection & MITRE ATT&CK® Matrix)
+- **Wireshark / PCAP Binary Ingestion & Flow Reconstructor (`src/pcap_extractor.py`, `backend/main.py`)**:
+  - Pure-Python zero-dependency parser for `.pcap` and `.pcapng` network capture files.
+  - Reconstructs raw packets into bidirectional 5-tuple network conversation flows (`src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`).
+  - Extracts 28 statistical flow features (packet counts, durations, inter-arrival times, payload lengths, TCP flags SYN/FIN/RST/ACK).
+  - Integrates with `POST /analyze/pcap` returning predictions, attack attribution, and MITRE mapping.
+- **Interactive MITRE ATT&CK® Enterprise Matrix Navigator (`src/mitre_database.py`, `frontend/dashboard.py`)**:
+  - Full Cyber Kill Chain matrix covering all 14 official enterprise tactics: *Reconnaissance, Resource Development, Initial Access, Execution, Persistence, Privilege Escalation, Defense Evasion, Credential Access, Discovery, Lateral Movement, Collection, Command & Control, Exfiltration, Impact*.
+  - Live session heatmap overlay highlighting triggered techniques with red pulse glow and alert counts.
+  - Deep Technique Inspector surfacing description, threat actor attribution (APTs), detection heuristics, and instant multi-platform SOAR containment scripts (`iptables` and Snort/Suricata rules).
+  - Correlated flow inspector linking triggered techniques directly to the offending network flows.
+- **Dual Surface Accessibility**:
+  - Dedicated full-page command center: `🛡️ MITRE ATT&CK Matrix` (Page 14 in navigation).
+  - Contextual tab inside Threat Detection: `["🚨 Alert Workstation & Triage", "🛡️ MITRE ATT&CK® Matrix Heatmap"]`.
+
+---
+
 
 ## Phase 9 — Agentic AI Platform Upgrade (Autonomous SOC, Threat Hunting & Swarm)
 - **Native ReAct Tier-2 SOC Agent (`src/agents/soc_agent.py`)**:

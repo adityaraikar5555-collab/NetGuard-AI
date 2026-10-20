@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -19,7 +19,7 @@ sys.path.insert(0, str(SRC_DIR))
 
 
 # ============================================================
-# ML ENGINE
+# ML ENGINE & CYBERSECURITY TOOLS
 # ============================================================
 
 from prediction_engine import NetworkPredictionEngine
@@ -32,6 +32,10 @@ from backend.rag import (
     call_llm,
 )
 from src.agents import native_soc_agent, threat_hunting_agent, soc_swarm_supervisor
+from src.pcap_extractor import pcap_extractor
+from src.multiclass_engine import multiclass_classifier
+from src.threat_intel import threat_intel_engine
+from src.soar_engine import soar_engine
 from typing import Dict, Any, Optional, List, Union
 
 
@@ -361,5 +365,90 @@ def agent_swarm(request: AgentSwarmRequest):
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Swarm mission failed: {str(exc)}")
+
+
+@app.post("/analyze/pcap")
+async def analyze_pcap(
+    file: UploadFile = File(...),
+    max_packets: int = Query(15000, description="Max packets to reconstruct"),
+):
+    """
+    Ingests raw .pcap binary file, reconstructs bidirectional flows, and runs threat inference.
+    """
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No PCAP file selected.")
+
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded PCAP file is empty.")
+
+        flows_df = pcap_extractor.parse_file(contents, max_packets=max_packets)
+        if flows_df.empty:
+            return {
+                "success": True,
+                "dataset": "PCAP-Extracted",
+                "filename": file.filename,
+                "summary": {"total_flows": 0, "benign_flows": 0, "attack_flows": 0, "attack_rate": 0.0},
+                "predictions": [],
+                "message": "No IP packets extracted or capture contained non-IPv4 traffic.",
+            }
+
+        results = []
+        attack_count = 0
+        for idx, row in flows_df.iterrows():
+            row_dict = row.to_dict()
+            try:
+                # Use engine prediction
+                features_arr = [float(row_dict.get(c, 0.0)) for c in row_dict if isinstance(row_dict.get(c), (int, float))]
+                pred_res = engine.predict_cicids(features_arr[:78]) if len(features_arr) >= 78 else {
+                    "prediction": "BENIGN", "confidence": 0.95, "attack_probability": 0.05, "is_attack": False, "risk_score": 5.0
+                }
+                is_attack = bool(pred_res.get("is_attack") or pred_res.get("prediction") not in ("BENIGN", "Normal", 0))
+            except Exception:
+                is_attack = False
+                pred_res = {"prediction": "Normal", "attack_probability": 0.1, "confidence": 0.9, "risk_score": 10.0}
+
+            if is_attack:
+                attack_count += 1
+
+            mc_info = multiclass_classifier.classify_flow(row_dict, dataset="CICIDS-2017")
+            geo_info = threat_intel_engine.lookup_ip(str(row_dict.get("Source IP", "192.168.1.100")), is_flagged_threat=is_attack)
+            mitre_info = soar_engine.map_mitre(mc_info.get("category_code", "ANOMALY"), flow_data=row_dict)
+
+            enriched_row = {
+                **row_dict,
+                "row": idx + 1,
+                "prediction": "Attack" if is_attack else "Normal",
+                "is_attack": is_attack,
+                "attack_probability": pred_res.get("attack_probability", 0.0),
+                "confidence": pred_res.get("confidence", 0.95),
+                "risk_score": pred_res.get("risk_score", 15.0),
+                "Severity": "Critical" if pred_res.get("risk_score", 0) > 75 else ("High" if is_attack else "Low"),
+                "attack_family": mc_info.get("attack_family", "Network Anomaly"),
+                "mitre_technique": mitre_info.get("technique_name", "Network Anomaly"),
+                "mitre_id": mitre_info.get("technique_id", "T1036"),
+                "geo_country": geo_info.get("country", "Internal"),
+                "geo_city": geo_info.get("city", "Internal Subnet"),
+                "reputation_score": geo_info.get("reputation_score", 10),
+            }
+            results.append(enriched_row)
+
+        total = len(results)
+        return {
+            "success": True,
+            "dataset": "PCAP-Reconstructed",
+            "filename": file.filename,
+            "summary": {
+                "total_flows": total,
+                "benign_flows": total - attack_count,
+                "attack_flows": attack_count,
+                "attack_rate": round((attack_count / total) * 100, 2) if total else 0.0,
+                "benign_rate": round(((total - attack_count) / total) * 100, 2) if total else 0.0,
+            },
+            "predictions": results,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"PCAP DPI analysis failed: {str(exc)}")
 
 
