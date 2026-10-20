@@ -131,7 +131,7 @@ class TestOptionACybersecurity(unittest.TestCase):
         dashboard_text = Path("frontend/dashboard.py").read_text(encoding="utf-8")
         self.assertIn('"MITRE ATT&CK Matrix": render_mitre_matrix', dashboard_text)
         self.assertIn('("🛡️", "MITRE ATT&CK Matrix")', dashboard_text)
-        self.assertIn('tab_alerts, tab_matrix = st.tabs(["🚨 Alert Workstation & Triage", "🛡️ MITRE ATT&CK® Matrix Heatmap"])', dashboard_text)
+        self.assertIn('"🛡️ MITRE ATT&CK® Matrix Heatmap"', dashboard_text)
 
 
 if __name__ == "__main__":

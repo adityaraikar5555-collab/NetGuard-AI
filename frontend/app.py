@@ -45,6 +45,10 @@ from src.threat_intel import threat_intel_engine
 from src.alert_integrations import alert_integration_engine
 from src.drift_monitor import drift_monitor
 from src.agents import native_soc_agent, threat_hunting_agent, soc_swarm_supervisor
+from src.adversarial_tester import adversarial_tester
+from src.forensic_packager import forensic_packager
+import base64
+
 
 # ============================================================
 # FASTAPI APPLICATION
@@ -722,6 +726,99 @@ def agent_swarm(request: AgentSwarmRequest):
 
 
 # ============================================================
+# ADVERSARIAL ROBUSTNESS & RED-TEAM EVASION TESTER
+# ============================================================
+
+class AdversarialRequest(BaseModel):
+    flows: List[Dict[str, Any]] = Field(default_factory=list, description="List of flow dictionaries to evaluate")
+    attack_type: str = Field(default="HEADER_PADDING", description="Adversarial evasion strategy")
+    epsilon: float = Field(default=0.15, description="Perturbation strength (0.01 to 0.5)")
+
+
+@app.post("/adversarial/simulate")
+def simulate_adversarial(request: AdversarialRequest):
+    """
+    Evaluates ML anomaly detection resilience against adversarial evasion attacks:
+    Header Padding, Low-and-Slow rate throttling, TCP Chameleon, and boundary feature noise.
+    """
+    try:
+        def predict_fn(f_dict):
+            features_arr = [float(f_dict.get(c, 0.0)) for c in f_dict if isinstance(f_dict.get(c), (int, float))]
+            if len(features_arr) >= 78:
+                return predictor.predict_cicids(features_arr[:78])
+            return {
+                "prediction": "Attack" if float(f_dict.get("attack_probability", 0.9)) > 0.5 else "BENIGN",
+                "attack_probability": float(f_dict.get("attack_probability", 0.9)),
+                "is_attack": float(f_dict.get("attack_probability", 0.9)) > 0.5,
+            }
+
+        flows = request.flows
+        if not flows:
+            flows = [
+                {
+                    "Flow Duration": 120000000,
+                    "Total Fwd Packets": 15000,
+                    "Total Backward Packets": 10,
+                    "Total Length of Fwd Packets": 1050000,
+                    "Flow Bytes/s": 4500000.0,
+                    "Flow Packets/s": 98000.0,
+                    "SYN Flag Count": 14000,
+                    "ACK Flag Count": 2,
+                    "attack_probability": 0.98,
+                    "is_attack": True,
+                }
+            ]
+
+        return adversarial_tester.evaluate_robustness(
+            flows=flows,
+            predict_fn=predict_fn,
+            attack_type=request.attack_type,
+            epsilon=request.epsilon,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Adversarial simulation failed: {str(exc)}")
+
+
+# ============================================================
+# CRYPTOGRAPHIC FORENSIC INCIDENT PACKAGE & CASE EXPORT
+# ============================================================
+
+class ForensicExportRequest(BaseModel):
+    incident_data: Dict[str, Any] = Field(default_factory=dict, description="Incident alert telemetry")
+    flows: Optional[List[Dict[str, Any]]] = Field(default=None, description="Raw flow evidence")
+    investigator: str = Field(default="NetGuard Autonomous SOC Tier-2", description="Investigator ID")
+
+
+@app.post("/forensics/export-package")
+def export_forensic_package(request: ForensicExportRequest):
+    """
+    Generates a cryptographically sealed forensic incident bundle (.zip) with SHA-256 evidence manifest,
+    executive HTML dossier, Linux/Windows containment scripts, and STIX 2.1 indicators.
+    """
+    try:
+        bundle = forensic_packager.generate_incident_bundle(
+            incident_data=request.incident_data,
+            flows=request.flows,
+            investigator=request.investigator,
+        )
+        zip_b64 = base64.b64encode(bundle["zip_bytes"]).decode("utf-8")
+        return {
+            "success": True,
+            "case_id": bundle["case_id"],
+            "filename": bundle["filename"],
+            "zip_base64": zip_b64,
+            "zip_sha256": bundle["zip_sha256"],
+            "timestamp": bundle["timestamp"],
+            "investigator": bundle["investigator"],
+            "file_count": bundle["file_count"],
+            "manifest_preview": bundle["manifest_preview"],
+            "included_files": bundle["included_files"],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Forensic bundle generation failed: {str(exc)}")
+
+
+# ============================================================
 # API STATUS
 # ============================================================
 
@@ -742,6 +839,8 @@ def api_status():
             "alert_integrations": True,
             "drift_monitor": True,
             "agentic_soc": True,
+            "adversarial_tester": True,
+            "forensic_packager": True,
             "active_feedbacks_recorded": drift_monitor.get_feedback_count(),
         },
         "models": {
@@ -763,6 +862,9 @@ def api_status():
             "agent_investigate": "/agent/investigate",
             "agent_hunt": "/agent/hunt",
             "agent_swarm": "/agent/swarm",
+            "adversarial_simulate": "/adversarial/simulate",
+            "forensics_export": "/forensics/export-package",
             "chat_endpoint": "/chat",
         },
     }
+

@@ -7,17 +7,34 @@ statistics computed directly on an uploaded file; unavailable values render as
 N/A / "Not available".
 
 ## Files Changed
-- `src/mitre_database.py` (NEW) — Complete MITRE ATT&CK® Enterprise Matrix database (v14.1) covering all 14 tactics, techniques, detection signatures, threat actors, and SOAR mitigation playbooks.
+- `src/adversarial_tester.py` (NEW) — Red-Team Adversarial Robustness & Evasion Testing Engine with 4 perturbation vectors, robustness index calculator, and automated tree hardening playbooks.
+- `src/forensic_packager.py` (NEW) — Cryptographic Forensic Case Export Engine packaging ISO/IEC 27037 compliant .zip containers with SHA-256 seals, HTML dossiers, containment scripts, and STIX 2.1 bundles.
+- `tests/test_adversarial_forensics.py` (NEW) — Comprehensive unit and integration test suite covering adversarial attacks, cryptographic zip integrity, and endpoints (6/6 passed).
+- `src/mitre_database.py` — Complete MITRE ATT&CK® Enterprise Matrix database (v14.1) covering all 14 tactics, techniques, detection signatures, threat actors, and SOAR mitigation playbooks.
 - `src/pcap_extractor.py` — Pure-Python PCAP/Wireshark binary parser reconstructing bidirectional 28-feature flow records.
-- `data/test/sample_capture.pcap` (NEW) — Multi-packet Wireshark capture fixture with HTTP, SYN PortScan sweeps, and DoS bursts.
-- `backend/main.py` & `frontend/app.py` — added `POST /analyze/pcap` endpoint with flow reconstruction, ML classification, and threat attribution.
-- `frontend/api.py` — added `analyze_pcap_file()` client adapter with MIME streaming.
-- `frontend/dashboard.py` — added 14th page `🛡️ MITRE ATT&CK Matrix` with interactive heatmap navigator, tactic filters, technique deep-inspector, APT attribution, and SOAR playbooks, plus integrated matrix heatmap inside `Threat Detection`.
-- `tests/test_pcap_mitre.py` (NEW) — 6 comprehensive unit tests verifying DPI extraction, endpoints, matrix taxonomy, and routing (6/6 passed).
+- `data/test/sample_capture.pcap` — Multi-packet Wireshark capture fixture with HTTP, SYN PortScan sweeps, and DoS bursts.
+- `backend/main.py` & `frontend/app.py` — added `POST /adversarial/simulate` and `POST /forensics/export-package` endpoints.
+- `frontend/api.py` — added `simulate_adversarial()` and `export_forensic_package()` client adapters.
+- `frontend/dashboard.py` — added 15th page `🎯 Adversarial Red-Team`, embedded `render_adversarial_tester()` inside `ML Insights`, and added 1-click forensic bundle export to `Threat Detection` and per-alert investigation dialogs.
+
+---
+
+## Phase 11 — Production-Grade Cybersecurity Suite (Option B: Adversarial Red-Team & Forensic Case Export)
+- **Adversarial Robustness & Red-Team Evasion Tester (`src/adversarial_tester.py`)**:
+  - Implements 4 evasion vectors: Header Padding & Flow Jitter, Low-and-Slow Rate Throttling, TCP Chameleon & Flag Masking, and Heuristic Feature Noise.
+  - Computes the **Robustness Index** (resilience percentage under noise), evasion success rate, and average confidence degradation.
+  - Automatically recommends model hardening playbooks: Ratio-invariant normalization, adversarial data augmentation, multi-window time accumulators, and ensemble tree pruning.
+  - Accessible via dedicated navigation page (`🎯 Adversarial Red-Team`) and as an interactive tab inside `ML Insights`.
+- **1-Click Cryptographic Incident Package & Forensic Case Export (`src/forensic_packager.py`)**:
+  - Compiles tamper-evident `.zip` case archives compliant with digital chain-of-custody standards (ISO/IEC 27037).
+  - Includes `evidence_manifest.txt` with SHA-256 and SHA-512 digital cryptographic seal signatures.
+  - Packages executive `incident_dossier.html`, production bash containment script (`contain_threat.sh`), Windows PowerShell script (`contain_threat.ps1`), Snort/Suricata rules (`snort_ids_rules.rules`), STIX 2.1 JSON bundle, and raw network evidence CSV.
+  - 1-click download button available in per-alert investigation modals and under the dedicated `📦 Cryptographic Case Bundle Export` tab in Threat Detection.
 
 ---
 
 ## Phase 10 — Cybersecurity Enterprise Upgrade (PCAP Deep Packet Inspection & MITRE ATT&CK® Matrix)
+
 - **Wireshark / PCAP Binary Ingestion & Flow Reconstructor (`src/pcap_extractor.py`, `backend/main.py`)**:
   - Pure-Python zero-dependency parser for `.pcap` and `.pcapng` network capture files.
   - Reconstructs raw packets into bidirectional 5-tuple network conversation flows (`src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`).

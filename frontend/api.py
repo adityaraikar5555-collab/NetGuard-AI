@@ -72,3 +72,28 @@ def analyze_pcap_file(file_bytes: bytes, filename: str = "capture.pcap", max_pac
     return response.json()
 
 
+def simulate_adversarial(flows: list = None, attack_type: str = "HEADER_PADDING", epsilon: float = 0.15, base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/") + "/adversarial/simulate"
+    payload = {
+        "flows": flows or [],
+        "attack_type": attack_type,
+        "epsilon": epsilon,
+    }
+    response = requests.post(url, json=payload, timeout=60)
+    response.raise_for_status()
+    return response.json()
+
+
+def export_forensic_package(incident_data: dict, flows: list = None, investigator: str = "NetGuard Autonomous SOC Tier-2", base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/") + "/forensics/export-package"
+    payload = {
+        "incident_data": incident_data,
+        "flows": flows,
+        "investigator": investigator,
+    }
+    response = requests.post(url, json=payload, timeout=60)
+    response.raise_for_status()
+    return response.json()
+
+
+

@@ -89,9 +89,20 @@ The system classifies traffic, computes **attack probability**, **confidence**, 
   - Deep Technique Inspector surfacing threat actors (APTs), detection signatures, and automated SOAR playbooks (`iptables` + Snort rules).
   - Available as a dedicated command-center page (`🛡️ MITRE ATT&CK Matrix`) and contextual tab in `Threat Detection`.
 
+- **Adversarial Robustness & Red-Team Evasion Tester**
+  - Built-in adversarial evaluation suite (`src/adversarial_tester.py`) simulating 4 evasion vectors: Header Padding & Jitter, Low-and-Slow Rate Throttling, TCP Chameleon Masking, and Boundary Feature Perturbation.
+  - Quantitative **Robustness Index** metric scoring model resilience under active noise, confidence degradation analysis, and automated model hardening playbooks.
+  - Available via dedicated page `🎯 Adversarial Red-Team` and interactive tab in `ML Insights`.
+
+- **1-Click Cryptographic Forensic Incident Package & Case Export**
+  - Production-grade digital evidence packager (`src/forensic_packager.py`) compliant with ISO/IEC 27037 digital chain-of-custody standards.
+  - Includes `evidence_manifest.txt` with SHA-256 and SHA-512 digital cryptographic seal signatures.
+  - Packages executive `incident_dossier.html`, Linux bash containment script (`contain_threat.sh`), Windows PowerShell script (`contain_threat.ps1`), Snort/Suricata IDS rules (`snort_ids_rules.rules`), STIX 2.1 JSON bundle, and raw network evidence CSV.
+  - 1-click download button available in per-alert modals and under the dedicated `📦 Cryptographic Case Bundle Export` tab in Threat Detection.
+
 - **Rich Streamlit SOC Dashboard**
   - Dark cyber / light enterprise **theme system** with glassmorphism + neon glow.
-  - 14 navigation pages: Home, Overview, Live Traffic, Traffic Analytics, Threat Detection, **🛡️ MITRE ATT&CK Matrix**, **⚡ Agentic SOC Copilot (3 War-Room Tabs)**, Network Topology (3D), ML Insights, SOC AI Assistant, Dataset Analysis, Data Visualization Explorer, Prediction History, System Status & About.
+  - 15 navigation pages: Home, Overview, Live Traffic, Traffic Analytics, Threat Detection, **🛡️ MITRE ATT&CK Matrix**, **⚡ Agentic SOC Copilot (3 War-Room Tabs)**, Network Topology (3D), ML Insights, **🎯 Adversarial Red-Team**, SOC AI Assistant, Dataset Analysis, Data Visualization Explorer, Prediction History, System Status & About.
   - **Interactive 3D neural topology visualizer** (WebGL/Canvas).
   - Severity badges, threat status radar panels, KPI metric cards, live SOC activity feed.
   - 10+ color presets including **Colorblind-Safe (Okabe-Ito)**.
