@@ -31,6 +31,8 @@ from backend.rag import (
     build_general_prompt,
     call_llm,
 )
+from src.agents import native_soc_agent, threat_hunting_agent, soc_swarm_supervisor
+from typing import Dict, Any, Optional, List, Union
 
 
 # ============================================================
@@ -276,3 +278,88 @@ def chat(
             status_code=500,
             detail=str(error)
         )
+
+
+# ============================================================
+# AGENTIC SOC INVESTIGATION
+# ============================================================
+
+class AgentInvestigationRequest(BaseModel):
+    dataset: str = Field(default="CICIDS-2017", description="Dataset type ('CICIDS-2017' or 'NSL-KDD')")
+    src_ip: Optional[str] = Field(default="185.220.101.5", description="Suspicious source IP")
+    dst_ip: Optional[str] = Field(default="192.168.1.100", description="Target destination IP")
+    dst_port: Optional[str] = Field(default="80", description="Target destination port")
+    attack_probability: float = Field(default=0.95, description="Initial ML anomaly probability (0.0 to 1.0)")
+    features: Dict[str, Any] = Field(default_factory=dict, description="Preprocessed flow features dictionary")
+
+
+@app.post("/agent/investigate")
+def agent_investigate(request: AgentInvestigationRequest):
+    """
+    Triggers the Native ReAct SOC Agent to autonomously investigate a security anomaly.
+    Executes reasoning, tool-calling (XAI, Threat Intel, MultiClass, MITRE, SOAR),
+    and synthesizes an executive incident dossier.
+    """
+    try:
+        context = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+        dossier = native_soc_agent.investigate(context)
+        return {
+            "success": True,
+            "dossier": dossier.to_dict(),
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agent investigation failed: {str(exc)}"
+        )
+
+
+class AgentHuntRequest(BaseModel):
+    dataset: str = Field(default="CICIDS-2017", description="Benchmark dataset format ('CICIDS-2017' or 'NSL-KDD')")
+    features: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(default=None, description="Flow batch or dictionary of features to analyze for concept drift")
+
+
+@app.post("/agent/hunt")
+def agent_hunt(request: AgentHuntRequest):
+    """
+    Triggers the Autonomous Threat Hunting & Concept Drift Agent.
+    Evaluates Population Stability Index (PSI), detects sub-threshold stealth clusters,
+    and formulates proactive threat hunting hypotheses.
+    """
+    try:
+        report = threat_hunting_agent.hunt(request.features or {}, dataset=request.dataset)
+        return {
+            "success": True,
+            "report": report.to_dict(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Threat hunting cycle failed: {str(exc)}")
+
+
+class AgentSwarmRequest(BaseModel):
+    dataset: str = Field(default="CICIDS-2017", description="Dataset type ('CICIDS-2017' or 'NSL-KDD')")
+    src_ip: Optional[str] = Field(default="185.220.101.5", description="Attacker or suspicious source IP")
+    dst_ip: Optional[str] = Field(default="192.168.1.100", description="Target destination IP")
+    dst_port: Optional[str] = Field(default="80", description="Target destination port")
+    attack_probability: float = Field(default=0.95, description="Initial ML anomaly confidence (0.0 to 1.0)")
+    features: Dict[str, Any] = Field(default_factory=dict, description="Preprocessed flow features dictionary")
+
+
+@app.post("/agent/swarm")
+def agent_swarm(request: AgentSwarmRequest):
+    """
+    Triggers the Hierarchical Multi-Agent SOC Swarm.
+    Supervisor Agent coordinates Forensics, Threat Intel, and Remediation specialists
+    with blast radius safety checks.
+    """
+    try:
+        context = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+        brief = soc_swarm_supervisor.coordinate_investigation(context)
+        return {
+            "success": True,
+            "brief": brief.to_dict(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Swarm mission failed: {str(exc)}")
+
+

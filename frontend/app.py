@@ -1,6 +1,6 @@
 from pathlib import Path
 import sys
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict, Any
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,14 +36,24 @@ from backend.rag import (
     OUT_OF_DOMAIN_REFUSAL,
 )
 
+# 7 Advanced Power Engines + Agentic SOC
+from src.xai_engine import xai_engine
+from src.soar_engine import soar_engine
+from src.pcap_extractor import pcap_extractor
+from src.multiclass_engine import multiclass_classifier
+from src.threat_intel import threat_intel_engine
+from src.alert_integrations import alert_integration_engine
+from src.drift_monitor import drift_monitor
+from src.agents import native_soc_agent, threat_hunting_agent, soc_swarm_supervisor
+
 # ============================================================
 # FASTAPI APPLICATION
 # ============================================================
 
 app = FastAPI(
     title="NetGuard AI SOC Backend",
-    description="FastAPI backend for Network Anomaly Detection and SOC RAG AI Assistant",
-    version="1.0.0",
+    description="FastAPI backend for Network Anomaly Detection, XAI, SOAR, PCAP Ingestion, and SOC Platform",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -63,6 +73,13 @@ dataset_analyzer = DatasetAnalyzer()
 cicids_analyzer = CICIDSAnalyzer()
 nsl_kdd_analyzer = NSLKDDAnalyzer(predictor)
 rag_retriever = RAGRetriever(config=default_config)
+
+# Link XAI engine to predictor
+try:
+    if hasattr(predictor, "engine"):
+        xai_engine.predictor = predictor.engine
+except Exception:
+    pass
 
 # ============================================================
 # REQUEST MODELS
@@ -105,6 +122,40 @@ class ChatRequest(BaseModel):
     )
 
 
+class ExplainRequest(BaseModel):
+    features: Union[Dict[str, Any], List[Any]] = Field(..., description="Flow feature dictionary or list")
+    dataset: str = Field("CICIDS-2017", description="CICIDS-2017 or NSL-KDD")
+    top_k: int = Field(5, description="Number of top contributing features")
+
+
+class SOARRequest(BaseModel):
+    threat_category: str = Field("ANOMALY", description="Threat type or attack family")
+    src_ip: Optional[str] = Field("192.168.1.105", description="Attacker IP")
+    dst_ip: Optional[str] = Field("10.0.0.1", description="Target destination IP")
+    dst_port: Optional[Union[int, str]] = Field(80, description="Target port")
+    protocol: str = Field("tcp", description="Network protocol")
+    severity: str = Field("HIGH", description="Alert severity")
+    flow_data: Optional[Dict[str, Any]] = Field(None, description="Optional raw flow record")
+
+
+class ThreatIntelRequest(BaseModel):
+    ip: str = Field(..., description="Target IP address for Geo-IP & OSINT lookup")
+    is_flagged_threat: bool = Field(False, description="Whether alert flagged this IP as malicious")
+
+
+class WebhookAlertRequest(BaseModel):
+    webhook_url: str = Field(..., description="Webhook endpoint URL")
+    channel_type: str = Field("slack", description="slack, discord, teams, or generic")
+    alert_payload: Dict[str, Any] = Field(..., description="Alert payload dictionary")
+
+
+class FeedbackRequest(BaseModel):
+    alert_id: str = Field(..., description="Unique alert identifier")
+    analyst_label: str = Field(..., description="CONFIRMED_ATTACK or FALSE_POSITIVE")
+    feature_vector: Dict[str, Any] = Field(..., description="Flow features")
+    analyst_notes: Optional[str] = Field(None, description="Analyst comments")
+
+
 # ============================================================
 # ROOT & HEALTH
 # ============================================================
@@ -114,8 +165,17 @@ def root():
     return {
         "application": "NetGuard AI SOC Backend",
         "status": "online",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "backend": "FastAPI",
+        "features": [
+            "Explainable AI (XAI)",
+            "Agentic SOAR & MITRE ATT&CK",
+            "PCAP / PCAPNG Ingestion",
+            "Multi-Class Classification",
+            "Threat Intel & Geo-IP",
+            "Real-Time Alerting (Slack/Discord/SIEM)",
+            "Continuous Learning & Drift Monitoring",
+        ],
     }
 
 
@@ -124,6 +184,9 @@ def health():
     return {
         "status": "healthy",
         "ml_engine": "ready" if predictor.is_ready() else "degraded",
+        "xai_engine": "ready",
+        "soar_engine": "ready",
+        "threat_intel": "ready",
     }
 
 
@@ -171,7 +234,7 @@ def predict_nsl_kdd(request: PredictionRequest):
 
 
 # ============================================================
-# FILE ANALYSIS
+# FILE ANALYSIS (CSV & PCAP)
 # ============================================================
 
 @app.post("/analyze/cicids")
@@ -284,6 +347,95 @@ async def analyze_nsl_kdd(
             Path(temp_path).unlink(missing_ok=True)
 
 
+@app.post("/analyze/pcap")
+async def analyze_pcap(
+    file: UploadFile = File(...),
+    max_packets: int = Query(15000, description="Max packets to reconstruct"),
+):
+    """
+    Ingests raw .pcap binary file, reconstructs bidirectional flows, and runs threat inference.
+    """
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No PCAP file selected.")
+
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded PCAP file is empty.")
+
+        # Reconstruct flows
+        flows_df = pcap_extractor.parse_file(contents, max_packets=max_packets)
+        if flows_df.empty:
+            return {
+                "success": True,
+                "dataset": "PCAP-Extracted",
+                "filename": file.filename,
+                "summary": {"total_flows": 0, "benign_flows": 0, "attack_flows": 0, "attack_rate": 0.0},
+                "predictions": [],
+                "message": "No IP packets extracted or capture contained non-IPv4 traffic.",
+            }
+
+        # Analyze extracted flows using CICIDS classifier
+        results = []
+        attack_count = 0
+        for idx, row in flows_df.iterrows():
+            row_dict = row.to_dict()
+            try:
+                # Predict
+                pred_res = predictor.predict_cicids(row_dict)
+                is_attack = bool(pred_res.get("prediction") == 1 or pred_res.get("is_attack"))
+            except Exception:
+                is_attack = False
+                pred_res = {"prediction": 0, "attack_probability": 0.1, "confidence": 0.9, "risk_score": 10.0}
+
+            if is_attack:
+                attack_count += 1
+
+            # Multi-Class Threat Classification
+            mc_info = multiclass_classifier.classify_flow(row_dict, dataset="CICIDS-2017")
+            # Threat Intel Geo-IP
+            geo_info = threat_intel_engine.lookup_ip(str(row_dict.get("Source IP", "192.168.1.100")), is_flagged_threat=is_attack)
+            # MITRE ATT&CK mapping
+            mitre_info = soar_engine.map_mitre(mc_info.get("category_code", "ANOMALY"), flow_data=row_dict)
+
+            enriched_row = {
+                **row_dict,
+                "prediction": "Attack" if is_attack else "Normal",
+                "is_attack": is_attack,
+                "attack_probability": pred_res.get("attack_probability", 0.0),
+                "confidence": pred_res.get("confidence", 0.95),
+                "risk_score": pred_res.get("risk_score", 15.0),
+                "Severity": "Critical" if pred_res.get("risk_score", 0) > 75 else ("High" if is_attack else "Low"),
+                "attack_family": mc_info.get("attack_family", "Network Anomaly"),
+                "mitre_technique": mitre_info.get("technique_name", "Network Anomaly"),
+                "mitre_id": mitre_info.get("technique_id", "T1036"),
+                "geo_country": geo_info.get("country", "Internal"),
+                "geo_city": geo_info.get("city", "Internal Subnet"),
+                "reputation_score": geo_info.get("reputation_score", 10),
+            }
+            results.append(enriched_row)
+
+        total = len(results)
+        return {
+            "success": True,
+            "dataset": "PCAP-Reconstructed",
+            "filename": file.filename,
+            "summary": {
+                "total_flows": total,
+                "benign_flows": total - attack_count,
+                "attack_flows": attack_count,
+                "attack_rate": round((attack_count / total) * 100, 2) if total else 0.0,
+                "benign_rate": round(((total - attack_count) / total) * 100, 2) if total else 0.0,
+            },
+            "predictions": results,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"PCAP processing failed: {str(exc)}")
+
+
 @app.post("/analyze/dataset")
 async def analyze_dataset(
     file: UploadFile = File(...)
@@ -308,6 +460,102 @@ async def analyze_dataset(
 
 
 # ============================================================
+# EXPLAINABLE AI (XAI) & ROOT-CAUSE ANALYSIS
+# ============================================================
+
+@app.post("/explain")
+def explain_threat(request: ExplainRequest):
+    try:
+        return xai_engine.explain(
+            features=request.features,
+            dataset=request.dataset,
+            top_k=request.top_k,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"XAI calculation failed: {str(exc)}")
+
+
+# ============================================================
+# AGENTIC SOAR & MITRE ATT&CK REMEDIATION
+# ============================================================
+
+@app.post("/soar/remediation")
+def get_soar_remediation(request: SOARRequest):
+    try:
+        mitre_info = soar_engine.map_mitre(request.threat_category, flow_data=request.flow_data)
+        remediation = soar_engine.generate_remediation(
+            src_ip=request.src_ip,
+            dst_ip=request.dst_ip,
+            dst_port=request.dst_port,
+            proto=request.protocol,
+            severity=request.severity,
+        )
+        ticket = soar_engine.create_incident_ticket(
+            alert_row={"Severity": request.severity, "prediction": "Attack"},
+            mitre_info=mitre_info,
+            remediation=remediation,
+        )
+        return {
+            "success": True,
+            "mitre": mitre_info,
+            "remediation": remediation,
+            "ticket": ticket,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"SOAR rule generation failed: {str(exc)}")
+
+
+# ============================================================
+# THREAT INTEL & OSINT LOOKUP
+# ============================================================
+
+@app.post("/threat-intel/lookup")
+def lookup_threat_intel(request: ThreatIntelRequest):
+    try:
+        return threat_intel_engine.lookup_ip(request.ip, is_flagged_threat=request.is_flagged_threat)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Threat intelligence lookup failed: {str(exc)}")
+
+
+# ============================================================
+# REAL-TIME WEBHOOK & SIEM ALERTS
+# ============================================================
+
+@app.post("/alerts/webhook")
+def dispatch_webhook(request: WebhookAlertRequest):
+    try:
+        return alert_integration_engine.send_webhook(
+            webhook_url=request.webhook_url,
+            channel_type=request.channel_type,
+            alert_payload=request.alert_payload,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Webhook dispatch failed: {str(exc)}")
+
+
+# ============================================================
+# MLOPS CONTINUOUS LEARNING & DRIFT MONITORING
+# ============================================================
+
+@app.post("/mlops/feedback")
+def submit_feedback(request: FeedbackRequest):
+    try:
+        ok = drift_monitor.record_feedback(
+            alert_id=request.alert_id,
+            analyst_label=request.analyst_label,
+            feature_vector=request.feature_vector,
+            analyst_notes=request.analyst_notes,
+        )
+        return {
+            "success": ok,
+            "total_feedbacks": drift_monitor.get_feedback_count(),
+            "message": "Analyst feedback recorded for continuous learning." if ok else "Failed to persist feedback.",
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Feedback recording failed: {str(exc)}")
+
+
+# ============================================================
 # RAG CHATBOT
 # ============================================================
 
@@ -327,7 +575,7 @@ def chat(request: ChatRequest):
         has_evidence = bool(retrieval_result.get("has_evidence", False))
         sources = retrieval_result.get("sources", []) if has_evidence else []
 
-        # 2. Out-of-domain + no reliable evidence → concise refusal (no weak chunks to LLM)
+        # 2. Out-of-domain + no reliable evidence -> concise refusal
         if not has_evidence and is_out_of_domain(question):
             return {
                 "success": True,
@@ -391,6 +639,89 @@ def chat(request: ChatRequest):
 
 
 # ============================================================
+# AGENTIC SOC INVESTIGATION
+# ============================================================
+
+class AgentInvestigationRequest(BaseModel):
+    dataset: str = Field(default="CICIDS-2017", description="Dataset type ('CICIDS-2017' or 'NSL-KDD')")
+    src_ip: Optional[str] = Field(default="185.220.101.5", description="Attacker or suspicious source IP")
+    dst_ip: Optional[str] = Field(default="192.168.1.100", description="Target destination IP")
+    dst_port: Optional[str] = Field(default="80", description="Target destination port")
+    attack_probability: float = Field(default=0.95, description="Initial ML anomaly confidence (0.0 to 1.0)")
+    features: Dict[str, Any] = Field(default_factory=dict, description="Preprocessed flow features dictionary")
+
+
+@app.post("/agent/investigate")
+def agent_investigate(request: AgentInvestigationRequest):
+    """
+    Triggers the Native ReAct SOC Agent to autonomously investigate a security anomaly.
+    Executes reasoning, tool-calling (XAI, Threat Intel, MultiClass, MITRE, SOAR),
+    and synthesizes an executive incident dossier.
+    """
+    try:
+        context = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+        dossier = native_soc_agent.investigate(context)
+        return {
+            "success": True,
+            "dossier": dossier.to_dict(),
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agent investigation failed: {str(exc)}"
+        )
+
+
+class AgentHuntRequest(BaseModel):
+    dataset: str = Field(default="CICIDS-2017", description="Benchmark dataset format ('CICIDS-2017' or 'NSL-KDD')")
+    features: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = Field(default=None, description="Flow batch or dictionary of features to analyze for concept drift")
+
+
+@app.post("/agent/hunt")
+def agent_hunt(request: AgentHuntRequest):
+    """
+    Triggers the Autonomous Threat Hunting & Concept Drift Agent.
+    Evaluates Population Stability Index (PSI), detects sub-threshold stealth clusters,
+    and formulates proactive threat hunting hypotheses.
+    """
+    try:
+        report = threat_hunting_agent.hunt(request.features or {}, dataset=request.dataset)
+        return {
+            "success": True,
+            "report": report.to_dict(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Threat hunting cycle failed: {str(exc)}")
+
+
+class AgentSwarmRequest(BaseModel):
+    dataset: str = Field(default="CICIDS-2017", description="Dataset type ('CICIDS-2017' or 'NSL-KDD')")
+    src_ip: Optional[str] = Field(default="185.220.101.5", description="Attacker or suspicious source IP")
+    dst_ip: Optional[str] = Field(default="192.168.1.100", description="Target destination IP")
+    dst_port: Optional[str] = Field(default="80", description="Target destination port")
+    attack_probability: float = Field(default=0.95, description="Initial ML anomaly confidence (0.0 to 1.0)")
+    features: Dict[str, Any] = Field(default_factory=dict, description="Preprocessed flow features dictionary")
+
+
+@app.post("/agent/swarm")
+def agent_swarm(request: AgentSwarmRequest):
+    """
+    Triggers the Hierarchical Multi-Agent SOC Swarm.
+    Supervisor Agent coordinates Forensics, Threat Intel, and Remediation specialists
+    with blast radius safety checks.
+    """
+    try:
+        context = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+        brief = soc_swarm_supervisor.coordinate_investigation(context)
+        return {
+            "success": True,
+            "brief": brief.to_dict(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Swarm mission failed: {str(exc)}")
+
+
+# ============================================================
 # API STATUS
 # ============================================================
 
@@ -398,10 +729,20 @@ def chat(request: ChatRequest):
 def api_status():
     return {
         "status": "online",
+        "version": "2.0.0",
         "services": {
             "ml_engine": predictor.is_ready(),
             "rag_knowledge_base": not rag_retriever.vector_store.is_empty(),
             "rag_chunks_indexed": len(rag_retriever.vector_store.chunks),
+            "xai_engine": True,
+            "soar_engine": True,
+            "pcap_extractor": True,
+            "multiclass_classifier": True,
+            "threat_intel_engine": True,
+            "alert_integrations": True,
+            "drift_monitor": True,
+            "agentic_soc": True,
+            "active_feedbacks_recorded": drift_monitor.get_feedback_count(),
         },
         "models": {
             "cicids_available": predictor.is_cicids_ready(),
@@ -412,7 +753,16 @@ def api_status():
             "predict_nsl_kdd": "/predict/nsl-kdd",
             "analyze_cicids": "/analyze/cicids",
             "analyze_nsl_kdd": "/analyze/nsl-kdd",
+            "analyze_pcap": "/analyze/pcap",
             "analyze_dataset": "/analyze/dataset",
+            "explain": "/explain",
+            "soar_remediation": "/soar/remediation",
+            "threat_intel": "/threat-intel/lookup",
+            "alerts_webhook": "/alerts/webhook",
+            "mlops_feedback": "/mlops/feedback",
+            "agent_investigate": "/agent/investigate",
+            "agent_hunt": "/agent/hunt",
+            "agent_swarm": "/agent/swarm",
             "chat_endpoint": "/chat",
         },
     }

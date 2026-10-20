@@ -9,6 +9,7 @@
 ![Scikit-Learn](https://img.shields.io/badge/ML-Scikit--Learn-orange?logo=scikitlearn)
 ![RandomForest](https://img.shields.io/badge/Algorithm-Random%20Forest-green)
 ![RAG](https://img.shields.io/badge/LLM-RAG%20Assistant-a855f7)
+![Agentic AI](https://img.shields.io/badge/Agentic%20AI-Autonomous%20SOC%20Swarm-blueviolet)
 ![Status](https://img.shields.io/badge/Status-Completed-success)
 ![Render](https://img.shields.io/badge/Backend%20Deployed-Render-46E3B7?logo=render)
 ![Streamlit](https://img.shields.io/badge/Frontend%20Deployed-Streamlit%20Cloud-FF4B4B?logo=streamlit)
@@ -26,6 +27,7 @@
 7. [Model Performance](#-model-performance)
 7a. [Live Deployment](#-live-deployment)
 8. [RAG Knowledge Base](#-rag-knowledge-base-agentic-soc-assistant)
+8a. [Agentic AI Architecture (Autonomous SOC & Swarm)](#-agentic-ai-architecture-autonomous-soc--multi-agent-swarm)
 9. [API Endpoints](#-api-endpoints)
 10. [Installation & Setup](#-installation--setup)
 11. [Running the Application](#-running-the-application)
@@ -70,9 +72,15 @@ The system classifies traffic, computes **attack probability**, **confidence**, 
   - Multi-provider LLM support: **Gemini, OpenAI, Groq, Ollama**, with automatic fallback and offline mode.
   - **Out-of-domain refusal** — politely declines unrelated questions.
 
+- **Autonomous Agentic AI & Multi-Agent Swarm**
+  - **Tier-2 ReAct Incident Copilot**: Autonomous reasoning loop (`Thought -> Action -> Observation`) using 6 cyber security tools (Threat Intel, XAI feature attribution, multiclass classifier, MITRE ATT&CK mapping, SOAR containment, and RAG SOC search).
+  - **Autonomous Threat Hunter & Concept Drift Agent**: Population Stability Index (PSI) drift monitoring and sub-threshold ($0.35 \le p \le 0.65$) stealth anomaly cluster discovery with SIEM query generation.
+  - **Hierarchical Multi-Agent Swarm**: Four specialized agents (`SupervisorAgent`, `ForensicsAgent`, `ThreatIntelAgent`, `RemediationAgent`) collaborating to produce STIX 2.1 incident bundles and blast-radius validated containment scripts.
+  - **Multi-LLM Failover**: Seamless auto-failover across Gemini, Groq, and deterministic policy execution with zero-crash guarantees.
+
 - **Rich Streamlit SOC Dashboard**
   - Dark cyber / light enterprise **theme system** with glassmorphism + neon glow.
-  - 12 navigation pages: Overview, Live Traffic, Traffic Analytics, Threat Detection, Network Topology (3D), ML Insights, SOC AI Assistant, Dataset Analysis, Data Visualization Explorer, Prediction History, System Status & About.
+  - 13 navigation pages: Home, Overview, Live Traffic, Traffic Analytics, Threat Detection, **Agentic SOC Copilot (3 War-Room Tabs)**, Network Topology (3D), ML Insights, SOC AI Assistant, Dataset Analysis, Data Visualization Explorer, Prediction History, System Status & About.
   - **Interactive 3D neural topology visualizer** (WebGL/Canvas).
   - Severity badges, threat status radar panels, KPI metric cards, live SOC activity feed.
   - 10+ color presets including **Colorblind-Safe (Okabe-Ito)**.
@@ -88,36 +96,45 @@ The system classifies traffic, computes **attack probability**, **confidence**, 
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│            STREAMLIT SOC DASHBOARD (Frontend · Streamlit Cloud) │
-│   Overview · Live Traffic · Threat Detection · 3D Topology ·    │
-│   ML Insights · SOC AI Assistant · Dataset Analysis · Explorer   │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │  HTTPS (requests) netguard-ai-nd5e.onrender.com
-┌───────────────────────────────▼─────────────────────────────────┐
-│                    FASTAPI BACKEND  (app.py)                     │
-│   /predict/cicids · /predict/nsl-kdd · /analyze/*  · /chat       │
-└───────┬─────────────────────────────┬───────────────────────────┘
-        │                             │
-┌───────▼────────────────┐   ┌────────▼───────────────────────────┐
-│   ML INFERENCE ENGINE   │   │        RAG ASSISTANT                │
-│  (src/prediction_engine)│   │   Retriever → Prompt → LLM          │
-│  CICIDS model           │   │   Gemini / OpenAI / Groq / Ollama   │
-│  NSL-KDD model          │   │   Offline fallback + refusal        │
-└───────┬────────────────┘   └────────┬───────────────────────────┘
-        │                            │
-┌───────▼─────────────┐   ┌──────────▼─────────────────────────────┐
-│ MODELS (artifacts)  │   │  KNOWLEDGE BASE (backend/rag)          │
-│  .pkl pickles       │   │  documents/*.md → chunks → embeddings  │
-│  + encoders         │   │  → vector store (npy / json / pkl)     │
-└─────────────────────┘   └────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│          STREAMLIT SOC DASHBOARD (Frontend · Streamlit Cloud)          │
+│  Overview · Live Traffic · Threat Detection · ⚡ Agentic SOC Copilot   │
+│  (ReAct Copilot · Threat Hunter & Drift · Multi-Agent Swarm Command)   │
+│  3D Topology · ML Insights · SOC AI Assistant · Dataset Analysis       │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │  HTTPS (requests) / Local :8000
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                       FASTAPI BACKEND (frontend/app.py)                │
+│  /predict/* · /analyze/* · /chat · /agent/investigate · /agent/hunt    │
+│  /agent/swarm · /api/status · /health                                  │
+└───────┬───────────────────────────┬────────────────────────────┬───────┘
+        │                           │                            │
+┌───────▼────────────────┐ ┌────────▼────────────────┐ ┌─────────▼──────────────┐
+│  ML INFERENCE ENGINE   │ │  RAG KNOWLEDGE RETRIEVER│ │   AGENTIC SOC ENGINES  │
+│ (src/prediction_engine)│ │   (backend/rag)         │ │   (src/agents)         │
+│  • CICIDS-2017 RF      │ │   • Chunking & VectorStore│ • Native ReAct Agent   │
+│  • NSL-KDD RF (tuned)  │ │   • Hybrid TF-IDF / St. │ │ • Drift & Threat Hunter│
+│  • Risk / Severity Map │ │   • Grounded Generation │ │ • Multi-Agent Swarm    │
+└───────┬────────────────┘ └────────┬────────────────┘ └─────────┬──────────────┘
+        │                           │                            │
+┌───────▼─────────────┐    ┌────────▼─────────────┐    ┌─────────▼──────────────┐
+│ MODELS & ENCODERS   │    │  CYBERSECURITY DOCS  │    │ SECURITY TOOLS REGISTRY│
+│  • .pkl Artifacts   │    │  • 12+ SOC markdown  │    │  • Threat Intel (IOCs) │
+│  • Label Encoders   │    │    knowledge bases   │    │  • XAI SHAP Attribution│
+│  • Scalers & Schema │    │  • MITRE ATT&CK refs │    │  • MITRE & SOAR Rules  │
+└─────────────────────┘    └──────────────────────┘    └────────────────────────┘
 ```
 
 **Flow:**
-1. The **Streamlit UI** (deployed on Streamlit Cloud) sends feature vectors or uploaded datasets to the **FastAPI backend** (deployed on Render).
-2. The backend routes to the **ML inference engine** (`NetworkPredictionEngine`), which loads the trained `.pkl` models, validates/pre-processes features, predicts, and computes risk + severity.
-3. The **SOC AI Assistant** retrieves relevant chunks from the RAG knowledge base, builds a grounded prompt, and calls a live LLM (or falls back to offline knowledge).
-4. Results are returned as JSON and rendered as charts, badges, and threat panels.
+1. The **Streamlit SOC Dashboard** triggers detection, interactive triage, or autonomous investigations.
+2. The **FastAPI Backend** (`frontend/app.py` & `backend/main.py`) routes requests to the ML inference engine, the RAG knowledge retriever, or the Agentic SOC engines.
+3. The **ML Inference Engine** evaluates network flow vectors for anomalous behavior, computing attack probability, risk score, and severity tiers.
+4. The **Agentic SOC Engines** provide multi-layered autonomous response:
+   - **ReAct Copilot**: Synthesizes structured `IncidentDossier` reports by invoking tools iteratively.
+   - **Threat Hunter**: Computes Population Stability Index (PSI) drift and reveals stealth attacks in the 0.35–0.65 probability grey zone.
+   - **Swarm Command**: Dispatches specialized agents (`Supervisor`, `Forensics`, `ThreatIntel`, `Remediation`) to validate blast radius and formulate STIX 2.1 bundles.
+5. All agent operations leverage multi-LLM failover (Gemini -> Groq -> Rule Policy) with zero-crash deterministic fallbacks.
+
 
 ---
 
@@ -146,12 +163,18 @@ Network Anamoly Detection/
 │   │   └── cache/                # Embedding / vectorizer caches
 │   │
 ├── frontend/                     # Application layer
-│   ├── app.py                    # ⭐ Primary FastAPI backend (all endpoints)
-│   ├── dashboard.py              # ⭐ Streamlit SOC dashboard (12 pages)
+│   ├── app.py                    # ⭐ Primary FastAPI backend (all endpoints + /agent/*)
+│   ├── dashboard.py              # ⭐ Streamlit SOC dashboard (13 pages incl. Agentic SOC)
+│   ├── ui_components.py          # Cyber design system & triage components
 │   └── api.py                    # Streamlit → Backend API client wrapper
 │
-├── src/                          # Core ML source
+├── src/                          # Core ML & Agentic AI
 │   ├── prediction_engine.py      # Central inference engine
+│   ├── agents/                   # ⚡ Autonomous Agentic AI Framework
+│   │   ├── tools.py              # 6 Cyber tools registry (IOCs, SHAP, MITRE, SOAR, RAG)
+│   │   ├── soc_agent.py          # Native ReAct SOC Tier-2 Copilot & Dossier Synthesizer
+│   │   ├── drift_hunter_agent.py # Concept Drift (PSI) & Stealth Anomaly Hunter
+│   │   └── multi_agent_swarm.py  # Hierarchical Multi-Agent Swarm (4 Specialists)
 │   ├── cicids_analyzer.py        # CICIDS CSV analysis
 │   ├── nsl_kdd_analyzer.py       # NSL-KDD file analysis + statistics
 │   ├── cicids_preprocessing.py   # CICIDS load/clean/label-encode
@@ -184,8 +207,10 @@ Network Anamoly Detection/
 │
 ├── tests/                        # Engine & integration checks
 │   ├── test_prediction_engine.py
-│   └── test_real_predictions.py
+│   ├── test_real_predictions.py
+│   └── test_soc_agent.py         # ⚡ Comprehensive test suite for all 3 Agent engines
 │
+├── run_soc.bat                   # 🚀 1-Click Windows Launcher (FastAPI :8000 + Streamlit :8501)
 ├── check_threshold.py            # NSL-KDD attack-threshold tuning utility
 ├── requirements.txt              # Python dependencies
 ├── .streamlit/config.toml        # Streamlit theme/server config
@@ -193,7 +218,7 @@ Network Anamoly Detection/
 └── README.MD                     # This file
 ```
 
-> The application entry points are **`frontend/app.py`** (FastAPI backend) and **`frontend/dashboard.py`** (Streamlit UI). The pre-built RAG vector store is already included under `backend/rag/vector_store/`, so the chatbot works out of the box.
+> The application entry points are **`frontend/app.py`** (FastAPI backend) and **`frontend/dashboard.py`** (Streamlit UI), or launch both together via **`run_soc.bat`**. The pre-built RAG vector store is already included under `backend/rag/vector_store/`, so the chatbot and agents work out of the box.
 
 ---
 
@@ -355,6 +380,74 @@ The **SOC AI Assistant** (`/chat`) answers cybersecurity questions using **Retri
 
 ---
 
+## ⚡ Agentic AI Architecture (Autonomous SOC & Multi-Agent Swarm)
+
+NetGuard AI features a production-grade **Agentic AI platform** (`src/agents/`) designed to elevate automated intrusion detection to autonomous SOC operations. It is composed of three interconnected agent tiers with multi-LLM failover and deterministic safety fallbacks:
+
+```
+                          ┌──────────────────────────┐
+                          │   Incoming Threat Alert  │
+                          └─────────────┬────────────┘
+                                        │
+           ┌────────────────────────────┼────────────────────────────┐
+           │                            │                            │
+           ▼                            ▼                            ▼
+┌──────────────────────┐   ┌──────────────────────┐   ┌──────────────────────┐
+│  Tier-2 ReAct Agent  │   │ Drift & Hunter Agent │   │  Multi-Agent Swarm   │
+│  (soc_agent.py)      │   │ (drift_hunter.py)    │   │ (multi_agent_swarm)  │
+│                      │   │                      │   │                      │
+│ • ReAct Loop         │   │ • PSI Drift Calc     │   │ • Supervisor Agent   │
+│ • 6 Security Tools   │   │ • Stealth Clusters   │   │ • Forensics Agent    │
+│ • Dossier Synthesis  │   │ • SIEM Query Builder │   │ • Threat Intel Agent │
+│ • Multi-LLM Failover │   │ • Hunting Hypothesis │   │ • Remediation Agent  │
+└──────────┬───────────┘   └──────────┬───────────┘   └──────────┬───────────┘
+           │                          │                          │
+           └──────────────────────────┼──────────────────────────┘
+                                      ▼
+                      ┌───────────────────────────────┐
+                      │    SECURITY TOOLS REGISTRY    │
+                      │       (src/agents/tools.py)   │
+                      │                               │
+                      │ • threat_intel_lookup         │
+                      │ • xai_explain_flow            │
+                      │ • multiclass_classify         │
+                      │ • soar_mitre_mapping          │
+                      │ • soar_generate_containment   │
+                      │ • rag_search_knowledge        │
+                      └───────────────────────────────┘
+```
+
+### 1. Tier-2 Autonomous ReAct Incident Responder (`soc_agent.py`)
+- **Reasoning Loop**: Operates on a native ReAct (`Thought -> Action: tool(args) -> Observation -> Thought -> Final Verdict`) cycle without bulky external agent frameworks.
+- **Tools Registry (`tools.py`)**:
+  - `threat_intel_lookup`: Verifies IP/domain/hash reputation against simulated threat intelligence feeds.
+  - `xai_explain_flow`: Tree/SHAP-based feature attribution isolating top anomalous dimensions.
+  - `multiclass_classify`: Categorizes generic anomalies into specific attack vectors (DDoS, PortScan, Infiltration, Brute Force).
+  - `soar_mitre_mapping`: Correlates attack types to enterprise MITRE ATT&CK tactics, techniques, and IDs.
+  - `soar_generate_containment`: Synthesizes ready-to-execute firewall rules (`iptables`, `UFW`, `PowerShell NetSecurity`, `Snort IDS`).
+  - `rag_search_knowledge`: Performs semantic similarity lookup in the local 12-document SOC vector database.
+- **Multi-LLM Failover**: Automatically cascades from **Gemini 1.5 Flash** to **Groq (`llama-3.3-70b-versatile` / `openai/gpt-oss-120b`)**, and finally to an embedded deterministic **Policy Fallback**. The agent will never fail or return blank outputs.
+- **Output**: Generates a standardized `IncidentDossier` containing executive summary, root cause, MITRE tags, blast radius, and one-click containment scripts.
+
+### 2. Autonomous Threat Hunting & Concept Drift Agent (`drift_hunter_agent.py`)
+- **Population Stability Index (PSI)**: Monitors incoming flow feature distributions against baseline reference distributions:
+  $$\text{PSI} = \sum \Big( (\text{Actual}\% - \text{Baseline}\%) \times \ln\big(\frac{\text{Actual}\%}{\text{Baseline}\%}\big) \Big)$$
+  - $\text{PSI} < 0.10$: Minimal drift (Normal distribution).
+  - $0.10 \le \text{PSI} < 0.25$: Moderate drift (Warning).
+  - $\text{PSI} \ge 0.25$: Significant data drift detected (Retraining advised).
+- **Stealth Anomaly Hunting**: Uncovers low-and-slow reconnaissance and evasion attempts hidden in the model's confidence "grey zone" ($0.35 \le p \le 0.65$).
+- **Hypothesis & SIEM Generation**: Synthesizes hypothesis tickets with query syntax for **Splunk SPL** and **Elasticsearch DSL**.
+
+### 3. Hierarchical Multi-Agent SOC Swarm (`multi_agent_swarm.py`)
+- **Specialist Agent Delegation**:
+  - **SupervisorAgent**: Coordinates triage execution, verifies evidence completeness, and drafts the executive brief.
+  - **ForensicsAgent**: Deep dive into flow statistics, duration, packet length variance, and SHAP attribution.
+  - **ThreatIntelAgent**: Correlates IPs against C2 infrastructure and maps behavior to MITRE tactics.
+  - **RemediationAgent**: Validates blast radius against production subnets and formulates containment playbooks.
+- **STIX 2.1 Serialization**: Outputs structured STIX 2.1 JSON incident bundles for enterprise SIEM/SOAR ingestion.
+
+---
+
 ## 🌐 API Endpoints
 
 Primary backend: **`frontend/app.py`** (FastAPI). **Deployed URL:** `https://netguard-ai-nd5e.onrender.com` · Local (dev): `http://127.0.0.1:8000`.
@@ -371,30 +464,58 @@ Primary backend: **`frontend/app.py`** (FastAPI). **Deployed URL:** `https://net
 | `POST` | `/analyze/nsl-kdd` | Analyze uploaded NSL-KDD file |
 | `POST` | `/analyze/dataset` | Inspect/detect an uploaded dataset |
 | `POST` | `/chat` | Ask the RAG-powered SOC assistant |
+| `POST` | `/agent/investigate` | ⚡ Autonomous ReAct investigation on threat alert |
+| `POST` | `/agent/hunt` | 🎯 Autonomous threat hunting & PSI concept drift |
+| `POST` | `/agent/swarm` | 🐝 Hierarchical Multi-Agent Swarm incident triage |
 
-### Example — CICIDS Prediction
-
-```bash
-curl -X POST https://netguard-ai-nd5e.onrender.com/predict/cicids \
-  -H "Content-Type: application/json" \
-  -d '{"features": [0.0, ... 78 values ...]}'
-```
-
-### Example — NSL-KDD Prediction
+### Example — ReAct SOC Agent Investigation
 
 ```bash
-curl -X POST https://netguard-ai-nd5e.onrender.com/predict/nsl-kdd \
+curl -X POST http://127.0.0.1:8000/agent/investigate \
   -H "Content-Type: application/json" \
-  -d '{"features": [0.0, "tcp", "http", "SF", ... 41 values ...]}'
+  -d '{
+    "alert_row": {
+      "Source IP": "192.168.1.105",
+      "Destination IP": "10.0.0.1",
+      "Destination Port": 80,
+      "Protocol": "tcp",
+      "attack_probability": 0.94,
+      "severity": "CRITICAL"
+    },
+    "dataset": "CICIDS-2017",
+    "max_iterations": 5
+  }'
 ```
 
-### Example — Chat with SOC Assistant
+### Example — Threat Hunting & Concept Drift Analysis
 
 ```bash
-curl -X POST https://netguard-ai-nd5e.onrender.com/chat \
+curl -X POST http://127.0.0.1:8000/agent/hunt \
   -H "Content-Type: application/json" \
-  -d '{"question": "How do I detect a DDoS attack?"}'
+  -d '{
+    "dataset_name": "CICIDS-2017",
+    "records": [
+      {"Destination Port": 4444, "Protocol": "tcp", "Flow Duration": 120000, "attack_probability": 0.52}
+    ]
+  }'
 ```
+
+### Example — Multi-Agent Swarm Triage
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/swarm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alert": {
+      "source_ip": "172.16.0.45",
+      "target_ip": "10.0.0.5",
+      "target_port": 445,
+      "severity": "HIGH",
+      "attack_type": "Infiltration"
+    }
+  }'
+```
+
 
 **Prediction response fields:** `dataset`, `prediction`, `confidence`, `attack_probability`, `is_attack`, `risk_score`, `severity`.
 
@@ -451,27 +572,39 @@ The platform runs fully **without** any API keys — the SOC assistant auto-fall
 >
 > Skip straight to [Live Deployment](#-live-deployment). The steps below run the app **locally** for development.
 
-### Step 1 — Start the FastAPI backend
+### Option A — 1-Click Launcher (Windows)
 
+Double click `run_soc.bat` or run:
+
+```bat
+run_soc.bat
+```
+
+This starts the FastAPI backend (`http://127.0.0.1:8000`), waits for health check confirmation, launches the Streamlit SOC Dashboard (`http://localhost:8501`), and opens your default browser automatically.
+
+### Option B — Manual Multi-Terminal Launch
+
+**Terminal 1 — FastAPI Backend:**
 ```bash
 uvicorn frontend.app:app --reload --port 8000
 ```
+> The backend auto-loads the ML models and indexes the RAG knowledge base on startup.
 
-> The backend auto-loads the ML models and (re)indexes the RAG knowledge base on startup (skips rebuild if already indexed).
-
-### Step 2 — Start the Streamlit dashboard
-
-In a second terminal:
-
+**Terminal 2 — Streamlit SOC Dashboard:**
 ```bash
 streamlit run frontend/dashboard.py
 ```
-
-Then open the URL shown in the terminal (default `http://localhost:8501`).
+> Open `http://localhost:8501` to access all 13 SOC command-center pages, including the new **⚡ Agentic SOC Copilot** war room.
 
 ---
 
 ## 🧪 Testing
+
+Run the full automated test suite for the **Agentic AI Platform** (ReAct agent, tool execution, threat hunting PSI, and multi-agent swarm):
+
+```bash
+python -m unittest tests/test_soc_agent.py
+```
 
 Verify the prediction engine loads and correctly rejects invalid input:
 

@@ -42,3 +42,7 @@ data/NSL-KDD/
 
 # RAG generated runtime artifacts (rebuild via ingestion)
 backend/rag/cache/
+
+# Frontend local session persistence
+frontend/.session_store/
+.session_store/
