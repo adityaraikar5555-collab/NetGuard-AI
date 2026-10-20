@@ -47,6 +47,7 @@ from src.drift_monitor import drift_monitor
 from src.agents import native_soc_agent, threat_hunting_agent, soc_swarm_supervisor
 from src.adversarial_tester import adversarial_tester
 from src.forensic_packager import forensic_packager
+from src.csv_optimizer import csv_optimizer, SmartCSVOptimizer
 import base64
 
 
@@ -237,8 +238,32 @@ def predict_nsl_kdd(request: PredictionRequest):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+def _extract_upload_to_temp_csv(file_bytes: bytes, filename: str) -> str:
+    """Extract or prepare uploaded CSV/GZ/ZIP to a temporary file path ready for analyzer."""
+    import tempfile, zipfile, io
+    lower_name = filename.lower()
+    if lower_name.endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            csv_names = [n for n in zf.namelist() if n.lower().endswith(".csv")]
+            if not csv_names:
+                raise HTTPException(status_code=400, detail="No CSV found inside ZIP archive.")
+            csv_bytes = zf.read(csv_names[0])
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".csv") as temp_file:
+            temp_file.write(csv_bytes)
+            return temp_file.name
+    elif lower_name.endswith((".csv.gz", ".gz")):
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".csv.gz") as temp_file:
+            temp_file.write(file_bytes)
+            return temp_file.name
+    else:
+        suffix = Path(filename).suffix or ".csv"
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=suffix) as temp_file:
+            temp_file.write(file_bytes)
+            return temp_file.name
+
+
 # ============================================================
-# FILE ANALYSIS (CSV & PCAP)
+# FILE ANALYSIS (CSV, GZ, ZIP & PCAP)
 # ============================================================
 
 @app.post("/analyze/cicids")
@@ -255,14 +280,7 @@ async def analyze_cicids(
         if not contents:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-        import tempfile
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            delete=False,
-            suffix=Path(file.filename).suffix
-        ) as temp_file:
-            temp_file.write(contents)
-            temp_path = temp_file.name
+        temp_path = _extract_upload_to_temp_csv(contents, file.filename)
 
         analysis_dict = cicids_analyzer.analyze_csv(temp_path, max_rows=max_rows)
         results_df = analysis_dict.get("results")
@@ -308,14 +326,7 @@ async def analyze_nsl_kdd(
         if not contents:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-        import tempfile
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            delete=False,
-            suffix=Path(file.filename).suffix
-        ) as temp_file:
-            temp_file.write(contents)
-            temp_path = temp_file.name
+        temp_path = _extract_upload_to_temp_csv(contents, file.filename)
 
         result = nsl_kdd_analyzer.analyze_file(
             temp_path,
@@ -816,6 +827,81 @@ def export_forensic_package(request: ForensicExportRequest):
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Forensic bundle generation failed: {str(exc)}")
+
+
+# ============================================================
+# CSV OPTIMIZER & COMPRESSION (100MB+ -> <25MB)
+# ============================================================
+
+@app.post("/optimizer/compress")
+async def optimize_compress_csv(
+    file: UploadFile = File(...),
+):
+    """Compresses an uploaded raw CSV (e.g. 50MB-100MB+) to GZIP (.csv.gz) to fit within 25MB benchmark."""
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file selected.")
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        res = csv_optimizer.compress_csv_to_gzip(contents, filename=file.filename)
+        return {
+            "success": True,
+            "original_filename": res["original_filename"],
+            "compressed_filename": res["compressed_filename"],
+            "original_size_mb": res["original_size_mb"],
+            "compressed_size_mb": res["compressed_size_mb"],
+            "compression_ratio": res["compression_ratio"],
+            "percent_saved": res["percent_saved"],
+            "within_benchmark": res["within_benchmark"],
+            "benchmark_limit_mb": res["benchmark_limit_mb"],
+            "compressed_base64": base64.b64encode(res["compressed_bytes"]).decode("utf-8"),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Compression failed: {str(exc)}")
+
+
+@app.post("/optimizer/downsample")
+async def optimize_downsample_csv(
+    file: UploadFile = File(...),
+    target_max_mb: float = Query(24.0, description="Target size threshold in MB"),
+):
+    """Intelligently downsamples oversized CSVs to strictly stay below target MB threshold."""
+    try:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file selected.")
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        res = csv_optimizer.downsample_csv_to_budget(
+            contents,
+            filename=file.filename,
+            target_max_mb=target_max_mb,
+        )
+        return {
+            "success": True,
+            "action": res.get("action"),
+            "original_filename": res["original_filename"],
+            "output_filename": res["output_filename"],
+            "original_size_mb": res["original_size_mb"],
+            "output_size_mb": res["output_size_mb"],
+            "original_rows": res.get("original_rows"),
+            "output_rows": res.get("output_rows"),
+            "retention_rate_pct": res.get("retention_rate_pct"),
+            "within_benchmark": res["within_benchmark"],
+            "benchmark_limit_mb": res["benchmark_limit_mb"],
+            "output_base64": base64.b64encode(res["output_bytes"]).decode("utf-8"),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Downsample failed: {str(exc)}")
+
+
+@app.get("/optimizer/estimate")
+def estimate_file_compression(
+    file_size_mb: float = Query(..., description="File size in megabytes, e.g. 100.0"),
+):
+    """Provides estimated compressed size and benchmark feasibility for a given file size."""
+    return csv_optimizer.estimate_compression(file_size_mb)
 
 
 # ============================================================
