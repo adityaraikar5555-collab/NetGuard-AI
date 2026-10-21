@@ -1428,25 +1428,52 @@ def fetch_api_status():
 
 
 def readiness_from_status(status_response):
-    """Extract (ml_ready, rag_ready) from a raw /api/status response.
+    """Extract ML/RAG readiness from the deployed FastAPI /api/status schema.
 
-    Both values may legitimately be None when the endpoint is unreachable or
-    does not expose a given field — the UI renders those as 'unavailable'
-    rather than fabricating a status.
+    The backend currently exposes services.ml_engine and
+    services.rag_knowledge_base, plus models.cicids_available and
+    models.nsl_kdd_available. Accept older aliases as compatibility fallbacks.
+    None means the status endpoint did not provide enough information.
     """
     if not isinstance(status_response, dict):
         return None, None
 
+    services = status_response.get("services") or status_response.get("components") or {}
+    models = status_response.get("models") or {}
+
     ml_ready = None
     rag_ready = None
-    services = status_response.get("services") or status_response.get("components") or {}
+
     if isinstance(services, dict):
-        ml_ready = _services_flag(services.get("ml"))
-        rag_ready = _services_flag(services.get("rag"))
+        # Current backend schema (backend/main.py /api/status).
+        ml_ready = _services_flag(services.get("ml_engine"))
+        if ml_ready is None:
+            ml_ready = _services_flag(services.get("ml"))
+        rag_ready = _services_flag(services.get("rag_knowledge_base"))
+        if rag_ready is None:
+            rag_ready = _services_flag(services.get("rag"))
+
+    # A model inventory is stronger evidence for the ML engine than a generic
+    # health response. Both false is not required: one loaded model is usable.
+    if ml_ready is None and isinstance(models, dict):
+        model_flags = [
+            _services_flag(models.get("cicids_available")),
+            _services_flag(models.get("nsl_kdd_available")),
+        ]
+        known_flags = [flag for flag in model_flags if flag is not None]
+        if known_flags:
+            ml_ready = any(known_flags)
+
     if ml_ready is None:
-        ml_ready = _services_flag(status_response.get("ml_ready") or status_response.get("ml"))
+        ml_ready = _services_flag(status_response.get("ml_ready"))
+    if ml_ready is None:
+        ml_ready = _services_flag(status_response.get("ml"))
+
     if rag_ready is None:
-        rag_ready = _services_flag(status_response.get("rag_ready") or status_response.get("rag"))
+        rag_ready = _services_flag(status_response.get("rag_ready"))
+    if rag_ready is None:
+        rag_ready = _services_flag(status_response.get("rag"))
+
     return ml_ready, rag_ready
 
 
