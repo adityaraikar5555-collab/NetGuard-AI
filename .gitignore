@@ -28,6 +28,11 @@ desktop.ini
 *.log
 *.tmp
 *.zip
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+
 
 # Large datasets — ignore folder contents so named fixtures can be un-ignored
 data/CICIDS-2017/*

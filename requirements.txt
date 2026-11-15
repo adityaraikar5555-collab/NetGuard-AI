@@ -10,3 +10,8 @@ requests==2.34.2
 python-dotenv==1.2.3
 scikit-learn==1.9.0
 joblib==1.5.3
+pyjwt>=2.8.0
+bcrypt>=4.0.0
+scapy>=2.8.0
+reportlab>=4.0.0
+

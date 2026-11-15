@@ -216,6 +216,23 @@ class NativeReActSOCAgent:
                 # LLM didn't call a tool; conclude
                 break
 
+            # Context-aware parameter completion if LLM omitted context-known parameters
+            if not isinstance(action_input, dict):
+                action_input = {}
+            if action_name == "xai_explain_flow":
+                action_input.setdefault("features", features)
+                action_input.setdefault("dataset", dataset)
+            elif action_name == "multiclass_classify":
+                action_input.setdefault("flow", features)
+                action_input.setdefault("dataset", dataset)
+            elif action_name == "threat_intel_lookup":
+                action_input.setdefault("ip", src_ip)
+            elif action_name == "soar_mitre_mapping":
+                action_input.setdefault("threat_type", "DOS_SYN_FLOOD" if "SYN" in str(features) else "ANOMALY")
+            elif action_name == "soar_generate_containment":
+                action_input.setdefault("src_ip", src_ip)
+                action_input.setdefault("dst_port", dst_port)
+
             # Execute Tool
             tool = self.registry.get(action_name)
             if tool:

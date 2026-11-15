@@ -22,6 +22,8 @@ sys.path.insert(
 # IMPORTS
 # ============================================================
 
+import pytest
+
 from prediction_engine import (
     NetworkPredictionEngine
 )
@@ -36,6 +38,11 @@ from nsl_kdd_preprocessing import (
 )
 
 
+@pytest.fixture
+def engine():
+    return NetworkPredictionEngine()
+
+
 # ============================================================
 # CICIDS TEST
 # ============================================================
@@ -47,11 +54,8 @@ def test_cicids(engine):
     print("CICIDS-2017 REAL PREDICTION")
     print("=" * 70)
 
-    data_path = (
-        PROJECT_ROOT
-        / "data"
-        / "CICIDS-2017"
-    )
+    data_file = PROJECT_ROOT / "data" / "CICIDS-2017" / "test_10_rows.csv"
+    data_path = data_file if data_file.exists() else (PROJECT_ROOT / "data" / "CICIDS-2017")
 
     print("\nLoading CICIDS-2017...")
 
@@ -181,6 +185,8 @@ def test_nsl_kdd(engine):
     result = engine.predict_nsl_kdd(
         sample
     )
+    if isinstance(result, list) and len(result) > 0:
+        result = result[0]
 
     print("\nRESULT")
     print("-" * 70)

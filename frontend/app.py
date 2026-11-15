@@ -68,6 +68,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Authentication & Multi-Tenant Alerts Router
+try:
+    from backend.auth_routes import router as auth_router
+    app.include_router(auth_router)
+except Exception as _auth_err:
+    print(f"[AUTH ROUTER WARNING] Could not include auth router: {_auth_err}")
+
+# Phase 2: Live Network Monitoring Router
+try:
+    from backend.monitor_routes import router as monitor_router
+    app.include_router(monitor_router)
+except Exception as _mon_err:
+    print(f"[MONITOR ROUTER WARNING] Could not include monitor router: {_mon_err}")
+
+# Phase 3: Real-Time Detection & WebSocket Streaming Router
+try:
+    from backend.detection_routes import router as detection_router
+    app.include_router(detection_router)
+except Exception as _det_err:
+    print(f"[DETECTION ROUTER WARNING] Could not include detection router: {_det_err}")
+
+# Phase 4: Alert Notifications & Deduplication Router
+try:
+    from backend.notification_routes import router as notification_router
+    app.include_router(notification_router)
+except Exception as _notif_err:
+    print(f"[NOTIFICATION ROUTER WARNING] Could not include notification router: {_notif_err}")
+
+
+
+
+
 # ============================================================
 # SERVICES
 # ============================================================
