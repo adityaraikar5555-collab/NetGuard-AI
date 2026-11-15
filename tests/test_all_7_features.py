@@ -137,7 +137,7 @@ def test_feature_7_drift_and_active_learning():
 
 def test_fastapi_routes():
     print("[API] Testing FastAPI Endpoint Registry...")
-    route_paths = [r.path for r in app.routes]
+    route_paths = [getattr(r, "path", None) for r in app.routes if getattr(r, "path", None)]
     expected_new_routes = [
         "/explain",
         "/soar/remediation",

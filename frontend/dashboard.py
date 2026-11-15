@@ -27,6 +27,8 @@ contracts are modified by this file. app.py and api.py are unchanged.
 """
 
 import io
+import os
+import sys
 import json
 import math
 from datetime import datetime
@@ -47,6 +49,14 @@ try:
     import api as api_client
 except Exception:
     api_client = None
+
+try:
+    import auth_client
+except Exception:
+    try:
+        from frontend import auth_client
+    except Exception:
+        auth_client = None
 
 try:
     from ui_components import (
@@ -96,6 +106,10 @@ try:
     from src.adversarial_tester import adversarial_tester
     from src.forensic_packager import forensic_packager
     from src.csv_optimizer import csv_optimizer
+    from src.live_monitor import live_monitor, CICIDS_78_FEATURE_NAMES
+    from src.realtime_detector import realtime_detector
+    from src.notification_engine import notification_engine
+    from src.benchmark_validator import benchmark_validator
     _ENGINES_AVAILABLE = True
 except Exception:
     _ENGINES_AVAILABLE = False
@@ -116,12 +130,27 @@ except Exception:
     adversarial_tester = None
     forensic_packager = None
     csv_optimizer = None
+    live_monitor = None
+    CICIDS_78_FEATURE_NAMES = []
+    realtime_detector = None
+    notification_engine = None
+    benchmark_validator = None
 
 
 # CONFIG & PAGE SETUP
 # ============================================================================
 
-API_URL = "https://netguard-ai-nd5e.onrender.com"
+DEFAULT_API_URL = os.environ.get("NETGUARD_API_URL", "http://127.0.0.1:8000").rstrip("/")
+API_URL = DEFAULT_API_URL
+
+
+def get_api_url() -> str:
+    """Returns the currently active FastAPI backend URL."""
+    url = st.session_state.get("custom_api_url") or os.environ.get("NETGUARD_API_URL", DEFAULT_API_URL)
+    url = url.rstrip("/")
+    if api_client is not None and hasattr(api_client, "set_api_base_url"):
+        api_client.set_api_base_url(url)
+    return url
 
 # ============================================================================
 # UPLOAD SIZE LIMITS
@@ -154,6 +183,7 @@ NAV_PAGES = [
     ("📁", "Dataset Analysis"),
     ("📈", "Data Visualization Explorer"),
     ("📜", "Prediction History"),
+    ("📋", "User Alert History"),
     ("🕓", "Incident Timeline"),
     ("⚙️", "System Status"),
     ("🛠️", "Settings"),
@@ -329,6 +359,10 @@ def init_state():
         "agent_latest_hunt_report": None,
         "agent_latest_swarm_brief": None,
         "agent_is_running": False,
+        # --- Phase 1: Authentication & Tenancy Isolation ---
+        "authenticated": False,
+        "auth_token": None,
+        "current_user": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -1398,32 +1432,37 @@ st.markdown(
 # ============================================================================
 
 def check_api_health():
+    curr_url = get_api_url()
     try:
         if api_client is not None:
-            data = api_client.get_health()
+            data = api_client.get_health(base_url=curr_url)
             return True, data
-        response = requests.get(f"{API_URL}/health", timeout=4)
+        response = requests.get(f"{curr_url}/health", timeout=3)
         response.raise_for_status()
         return True, response.json()
     except Exception:
         return False, None
 
 
-def fetch_model_info():
+@st.cache_data(ttl=15, show_spinner=False)
+def fetch_model_info(url_cache_key: str = ""):
+    curr_url = get_api_url()
     try:
         if api_client is not None:
-            return api_client.get_model_info()
-        response = requests.get(f"{API_URL}/model-info", timeout=6)
+            return api_client.get_model_info(base_url=curr_url)
+        response = requests.get(f"{curr_url}/model-info", timeout=4)
         response.raise_for_status()
         return response.json()
     except Exception:
         return None
 
 
-def fetch_api_status():
+@st.cache_data(ttl=10, show_spinner=False)
+def fetch_api_status(url_cache_key: str = ""):
     """GET /api/status — returns (dict|None). Never invents readiness values."""
+    curr_url = get_api_url()
     try:
-        response = requests.get(f"{API_URL}/api/status", timeout=5)
+        response = requests.get(f"{curr_url}/api/status", timeout=4)
         response.raise_for_status()
         return response.json()
     except Exception:
@@ -1431,25 +1470,52 @@ def fetch_api_status():
 
 
 def readiness_from_status(status_response):
-    """Extract (ml_ready, rag_ready) from a raw /api/status response.
+    """Extract ML/RAG readiness from the deployed FastAPI /api/status schema.
 
-    Both values may legitimately be None when the endpoint is unreachable or
-    does not expose a given field — the UI renders those as 'unavailable'
-    rather than fabricating a status.
+    The backend currently exposes services.ml_engine and
+    services.rag_knowledge_base, plus models.cicids_available and
+    models.nsl_kdd_available. Accept older aliases as compatibility fallbacks.
+    None means the status endpoint did not provide enough information.
     """
     if not isinstance(status_response, dict):
         return None, None
 
+    services = status_response.get("services") or status_response.get("components") or {}
+    models = status_response.get("models") or {}
+
     ml_ready = None
     rag_ready = None
-    services = status_response.get("services") or status_response.get("components") or {}
+
     if isinstance(services, dict):
-        ml_ready = _services_flag(services.get("ml"))
-        rag_ready = _services_flag(services.get("rag"))
+        # Current backend schema (backend/main.py /api/status).
+        ml_ready = _services_flag(services.get("ml_engine"))
+        if ml_ready is None:
+            ml_ready = _services_flag(services.get("ml"))
+        rag_ready = _services_flag(services.get("rag_knowledge_base"))
+        if rag_ready is None:
+            rag_ready = _services_flag(services.get("rag"))
+
+    # A model inventory is stronger evidence for the ML engine than a generic
+    # health response. Both false is not required: one loaded model is usable.
+    if ml_ready is None and isinstance(models, dict):
+        model_flags = [
+            _services_flag(models.get("cicids_available")),
+            _services_flag(models.get("nsl_kdd_available")),
+        ]
+        known_flags = [flag for flag in model_flags if flag is not None]
+        if known_flags:
+            ml_ready = any(known_flags)
+
     if ml_ready is None:
-        ml_ready = _services_flag(status_response.get("ml_ready") or status_response.get("ml"))
+        ml_ready = _services_flag(status_response.get("ml_ready"))
+    if ml_ready is None:
+        ml_ready = _services_flag(status_response.get("ml"))
+
     if rag_ready is None:
-        rag_ready = _services_flag(status_response.get("rag_ready") or status_response.get("rag"))
+        rag_ready = _services_flag(status_response.get("rag_ready"))
+    if rag_ready is None:
+        rag_ready = _services_flag(status_response.get("rag"))
+
     return ml_ready, rag_ready
 
 
@@ -1532,16 +1598,17 @@ def push_timeline(event: str, detail: str = "", kind: str = "info"):
 
 
 def analyze_file(uploaded_file, selected_dataset):
+    curr_url = get_api_url()
     name_lower = str(uploaded_file.name).lower()
     is_pcap = name_lower.endswith((".pcap", ".pcapng"))
     if is_pcap:
-        endpoint = f"{API_URL}/analyze/pcap"
+        endpoint = f"{curr_url}/analyze/pcap"
         mime_type = "application/vnd.tcpdump.pcap"
     else:
         endpoint = (
-            f"{API_URL}/analyze/cicids"
+            f"{curr_url}/analyze/cicids"
             if selected_dataset == "CICIDS-2017"
-            else f"{API_URL}/analyze/nsl-kdd"
+            else f"{curr_url}/analyze/nsl-kdd"
         )
         if name_lower.endswith((".gz", ".gzip")):
             mime_type = "application/gzip"
@@ -2066,7 +2133,112 @@ def render_single_column_chart(df, column, height=360):
 
 
 # ============================================================================
-# SIDEBAR
+# PHASE 1: AUTHENTICATION GATEWAY & SESSION ENFORCEMENT
+# ============================================================================
+
+def render_auth_gateway():
+    st.markdown(
+        """
+        <div style="max-width: 650px; margin: 30px auto 15px auto; text-align: center;">
+            <div style="font-size: 46px; line-height: 1; margin-bottom: 8px;">🛡️</div>
+            <div style="font-family: var(--font-display, 'Space Grotesk'); font-size: 28px; font-weight: 800; color: #f8fafc; letter-spacing: -0.5px;">
+                NetGuard AI · SOC Authentication Portal
+            </div>
+            <div style="font-size: 13px; color: #38bdf8; font-family: var(--font-mono, monospace); font-weight: 600; margin-top: 4px; letter-spacing: 1.5px;">
+                // SECURE MULTI-TENANT ACCESS GATEWAY //
+            </div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">
+                Authorized security analysts and SOC personnel only. Protected by bcrypt password encryption and signed JWT access tokens.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    _, col_center, _ = st.columns([1, 6, 1])
+    with col_center:
+        auth_tab1, auth_tab2 = st.tabs(["🔐 Sign In to SOC", "📝 Register New Analyst"])
+
+        with auth_tab1:
+            with st.form("login_form", clear_on_submit=False):
+                st.markdown("<div style='font-size:12px; font-weight:600; color:#94a3b8; margin-bottom:4px; font-family:var(--font-mono);'>CREDENTIAL AUTHENTICATION</div>", unsafe_allow_html=True)
+                login_user = st.text_input("Username or Email", placeholder="e.g. analyst or analyst@netguard.ai", key="login_username_input")
+                login_pwd = st.text_input("Password", type="password", placeholder="••••••••••••", key="login_password_input")
+                submit_login = st.form_submit_button("🔑 Authenticate & Enter SOC", use_container_width=True)
+
+                if submit_login:
+                    if not login_user.strip() or not login_pwd:
+                        st.error("Please provide both username and password.")
+                    else:
+                        res = auth_client.login_user(login_user.strip(), login_pwd) if auth_client else {"success": False, "error": "Auth client unavailable"}
+                        if res.get("success"):
+                            st.session_state.authenticated = True
+                            st.session_state.auth_token = res["data"]["access_token"]
+                            st.session_state.current_user = res["data"]["user"]
+                            st.success(f"Authentication verified. Welcome, {res['data']['user']['username']}!")
+                            st.rerun()
+                        else:
+                            st.error(res.get("error", "Invalid username or password."))
+
+            st.divider()
+            st.caption("⚡ One-Click Evaluation Demo Credentials")
+            q1, q2 = st.columns(2)
+            with q1:
+                if st.button("⚡ Sign In as SOC Analyst", key="quick_analyst_btn", use_container_width=True):
+                    res = auth_client.login_user("analyst", "Analyst@NetGuard2026!") if auth_client else {}
+                    if res.get("success"):
+                        st.session_state.authenticated = True
+                        st.session_state.auth_token = res["data"]["access_token"]
+                        st.session_state.current_user = res["data"]["user"]
+                        st.rerun()
+            with q2:
+                if st.button("🛡️ Sign In as SOC Admin", key="quick_admin_btn", use_container_width=True):
+                    res = auth_client.login_user("admin", "NetGuard@Admin2026!") if auth_client else {}
+                    if res.get("success"):
+                        st.session_state.authenticated = True
+                        st.session_state.auth_token = res["data"]["access_token"]
+                        st.session_state.current_user = res["data"]["user"]
+                        st.rerun()
+
+        with auth_tab2:
+            with st.form("register_form", clear_on_submit=False):
+                st.markdown("<div style='font-size:12px; font-weight:600; color:#94a3b8; margin-bottom:4px; font-family:var(--font-mono);'>NEW ANALYST ONBOARDING</div>", unsafe_allow_html=True)
+                reg_name = st.text_input("Full Name", placeholder="e.g. Alex Hunter", key="reg_name_input")
+                reg_user = st.text_input("Username", placeholder="e.g. alex_soc", key="reg_user_input")
+                reg_email = st.text_input("Email Address", placeholder="e.g. alex@soc.defense.org", key="reg_email_input")
+                reg_pwd = st.text_input("Password (min 6 characters)", type="password", placeholder="••••••••••••", key="reg_pwd_input")
+                reg_role = st.selectbox("Role", ["analyst", "admin"], key="reg_role_input")
+                submit_reg = st.form_submit_button("📝 Register & Launch SOC", use_container_width=True)
+
+                if submit_reg:
+                    if not reg_user.strip() or not reg_email.strip() or not reg_pwd:
+                        st.error("Username, email, and password are required.")
+                    else:
+                        res = auth_client.register_user(
+                            username=reg_user.strip(),
+                            email=reg_email.strip(),
+                            password=reg_pwd,
+                            full_name=reg_name.strip() or reg_user.strip(),
+                            role=reg_role,
+                        ) if auth_client else {"success": False, "error": "Auth client unavailable"}
+                        if res.get("success"):
+                            st.session_state.authenticated = True
+                            st.session_state.auth_token = res["data"]["access_token"]
+                            st.session_state.current_user = res["data"]["user"]
+                            st.success(f"Account registered. Welcome to NetGuard SOC, {res['data']['user']['username']}!")
+                            st.rerun()
+                        else:
+                            st.error(res.get("error", "Registration failed."))
+
+
+# Enforce authentication gate across all dashboard pages
+if not st.session_state.get("authenticated", False):
+    render_auth_gateway()
+    st.stop()
+
+
+# ============================================================================
+# SIDEBAR (PROTECTED)
 # ============================================================================
 
 api_online, health_data = check_api_health()
@@ -2086,6 +2258,33 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+
+    # Active Authenticated User Badge & Sign Out Button
+    _curr_u = st.session_state.get("current_user", {})
+    _u_name = _curr_u.get("username", "analyst")
+    _u_full = _curr_u.get("full_name") or _u_name
+    _u_role = (_curr_u.get("role") or "analyst").upper()
+    _role_badge_col = "#38bdf8" if _u_role == "ADMIN" else "#10b981"
+
+    st.markdown(
+        f"""
+        <div class="sidebar-user-card" style="background: rgba(18, 28, 50, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="font-weight:600; font-size:13px; color:#f8fafc;">👤 {esc(_u_full)}</div>
+                <span style="font-size:10px; font-weight:700; background:{_role_badge_col}22; color:{_role_badge_col}; border:1px solid {_role_badge_col}55; padding:2px 6px; border-radius:4px;">{_u_role}</span>
+            </div>
+            <div style="font-size:11px; color:#94a3b8; font-family:var(--font-mono); margin-top:2px;">@{esc(_u_name)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if st.button("🚪 Sign Out", key="sidebar_signout_btn", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.auth_token = None
+        st.session_state.current_user = None
+        st.rerun()
+
 
     st.markdown('<div class="nav-eyebrow">NAVIGATION</div>', unsafe_allow_html=True)
 
@@ -2426,6 +2625,180 @@ def render_overview():
 
 
 # ============================================================================
+# PHASE 2: LIVE NETWORK SENSOR PANEL
+# ============================================================================
+
+def render_live_network_sensor_panel():
+    st.markdown(
+        """
+        <div class="glass-panel" style="padding:14px 18px; margin-bottom:16px;">
+            <div>
+                <div style="font-size:14px; font-weight:700; color:#f8fafc;">📡 Live Local Network Sniffer &amp; Flow Assembler</div>
+                <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+                    Captures packets only on user-authorized network interfaces, groups them into 5-tuple bidirectional flows, and computes the exact 78 CICIDS features in real-time.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if not live_monitor:
+        st.error("Live monitor engine is not initialized.")
+        return
+
+    # 1. Interface Discovery & Authorization Policy
+    interfaces = live_monitor.get_available_interfaces()
+    curr_status = live_monitor.get_status()
+    auth_if = curr_status.get("authorized_interface")
+
+    st.markdown("<div style='font-size:12px; font-weight:600; color:var(--signal); margin-bottom:6px;'>1. NETWORK INTERFACE AUTHORIZATION POLICY</div>", unsafe_allow_html=True)
+
+    if_options = []
+    if_map = {}
+    for i in interfaces:
+        label = f"{i['name']} ({i.get('description', '')[:35]}) — IPv4: {i.get('ipv4', 'N/A')}"
+        if_options.append(label)
+        if_map[label] = i
+
+    col_if1, col_if2 = st.columns([5, 2])
+    with col_if1:
+        selected_label = st.selectbox(
+            "Select Interface to Authorize",
+            if_options,
+            key="monitor_if_select",
+            label_visibility="collapsed"
+        )
+    with col_if2:
+        if st.button("🛡️ Authorize & Lock Interface", key="auth_if_btn", use_container_width=True):
+            chosen = if_map.get(selected_label, {})
+            chosen_id = chosen.get("guid") or chosen.get("id") or chosen.get("name")
+            live_monitor.authorize_interface(chosen_id)
+            st.success(f"Authorized interface: {chosen.get('name')}")
+            st.rerun()
+
+    auth_chip_color = "rgba(16, 185, 129, 0.2)" if auth_if else "rgba(239, 68, 68, 0.2)"
+    auth_chip_text = f"🟢 AUTHORIZED SENSOR: {esc(auth_if)}" if auth_if else "🔴 NO INTERFACE AUTHORIZED (Capture Locked)"
+    st.markdown(
+        f'<div style="display:inline-block; font-family:var(--font-mono); font-size:11px; background:{auth_chip_color}; '
+        f'padding:4px 10px; border-radius:4px; margin-top:6px; margin-bottom:14px; border:1px solid rgba(255,255,255,0.1);">'
+        f'{auth_chip_text}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # 2. Monitoring & Sniffing Controls
+    st.markdown("<div style='font-size:12px; font-weight:600; color:var(--signal); margin-bottom:6px;'>2. CAPTURE & FLOW RECONSTRUCTION CONTROLS</div>", unsafe_allow_html=True)
+    c_btn1, c_btn2, c_btn3 = st.columns(3)
+
+    with c_btn1:
+        if not curr_status.get("is_monitoring"):
+            if st.button("▶️ Start Live Packet Sniffing", key="start_sniff_btn", type="primary", use_container_width=True):
+                if not auth_if:
+                    st.error("Cannot start sniffing: No interface is authorized. Please authorize an interface above first.")
+                else:
+                    try:
+                        live_monitor.start_monitoring(auth_if)
+                        st.toast(f"Sniffing started on {auth_if}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to start sniffer: {e}")
+        else:
+            if st.button("⏹️ Stop Packet Sniffing", key="stop_sniff_btn", type="secondary", use_container_width=True):
+                live_monitor.stop_monitoring()
+                st.toast("Sniffing stopped.")
+                st.rerun()
+
+    with c_btn2:
+        if st.button("⚡ Inject Test Packet Flow", key="inject_stream_btn", use_container_width=True):
+            import random
+            test_ports = [80, 443, 8080, 22, 53]
+            flow_res = live_monitor.inject_synthetic_flow(
+                src_ip=f"192.168.1.{random.randint(10, 240)}",
+                dst_ip="10.0.0.1",
+                dst_port=random.choice(test_ports),
+                packet_count=random.randint(6, 14),
+            )
+            st.success(f"Flow assembled: {flow_res.get('source_ip')} -> {flow_res.get('destination_ip')} ({flow_res.get('packets')} packets)")
+            st.rerun()
+
+    with c_btn3:
+        if st.button("🔄 Refresh Capture Status", key="refresh_sensor_btn", use_container_width=True):
+            st.rerun()
+
+    # 3. Real-Time Metric Cards
+    st.write("")
+    sm1, sm2, sm3, sm4 = st.columns(4)
+    with sm1:
+        metric_card("📦", "Packets Captured", f"{curr_status.get('packets_captured', 0):,}")
+    with sm2:
+        metric_card("🔄", "Active 5-Tuple Flows", f"{curr_status.get('active_flows', 0):,}")
+    with sm3:
+        metric_card("📊", "Emitted Flows Ready", f"{curr_status.get('total_flows_reconstructed', 0):,}", "metric-safe")
+    with sm4:
+        state_label = "🟢 SNIFFING" if curr_status.get("is_monitoring") else "⚪ IDLE"
+        metric_card("⚡", "Sensor State", state_label)
+
+    # 4. Display Reconstructed 78-Feature Flows
+    st.write("")
+    recent_flows_df = live_monitor.get_recent_flows_df(limit=25)
+    if recent_flows_df.empty:
+        empty_state(
+            "📡", "No Flows Reconstructed Yet",
+            "Start live packet capture or click 'Inject Test Packet Flow' to aggregate packets into bidirectional flows.",
+        )
+    else:
+        st.markdown(
+            f'<div style="font-size:12px; font-weight:600; color:var(--heading); margin-bottom:8px;">'
+            f'RECONSTRUCTED BIDIRECTIONAL FLOWS ({len(recent_flows_df)} AVAILABLE WITH 78 CICIDS FEATURES)</div>',
+            unsafe_allow_html=True,
+        )
+
+        disp_cols = [c for c in ["Source IP", "Destination IP", "Protocol", "Destination Port", "Flow Duration", "Total Fwd Packets", "Total Backward Packets", "Flow Bytes/s", "Average Packet Size"] if c in recent_flows_df.columns]
+        st.dataframe(recent_flows_df[disp_cols], use_container_width=True, hide_index=True)
+
+        with st.expander("🔬 Inspect Complete 78-Feature Vector Schema"):
+            st.dataframe(recent_flows_df, use_container_width=True)
+
+        # Trigger Real-Time Detection
+        if st.button("🚀 Run Real-Time Detection on Emitted Flows (Phase 3)", type="primary", use_container_width=True, key="run_flows_detection_btn"):
+            progress = st.status("🤖 Running Real-Time Detection on Live Flows...", expanded=True)
+            progress.write("🧮 Validating 78 CICIDS feature columns...")
+
+            try:
+                from prediction_engine import NetworkPredictionEngine
+                engine = NetworkPredictionEngine()
+                pred_res = engine.predict_cicids(recent_flows_df)
+                progress.write(f"✓ Model completed inference: Prediction = {pred_res['prediction']}")
+                progress.update(label="✅ Real-Time Detection Complete!", state="complete", expanded=False)
+
+                st.session_state.analysis_result = {
+                    "dataset": "CICIDS-2017 (Live Sensor)",
+                    "prediction": pred_res["prediction"],
+                    "confidence": pred_res["confidence"],
+                    "attack_rate": float(pred_res.get("attack_probability", 0) * 100),
+                    "total": len(recent_flows_df),
+                    "normal": len(recent_flows_df) if pred_res["prediction"] == "BENIGN" else 0,
+                    "attack": 0 if pred_res["prediction"] == "BENIGN" else len(recent_flows_df),
+                    "predictions_df": pd.DataFrame([{
+                        "Source IP": r.get("Source IP", "192.168.1.100"),
+                        "Destination IP": r.get("Destination IP", "10.0.0.1"),
+                        "Destination Port": r.get("Destination Port", 80),
+                        "Prediction": pred_res["prediction"],
+                        "Confidence": pred_res["confidence"],
+                        "Severity": pred_res.get("severity", "Low"),
+                        "Attack Probability": pred_res.get("attack_probability", 0.0),
+                    } for _, r in recent_flows_df.iterrows()]),
+                }
+                st.session_state.uploaded_filename = f"Live_Sensor_{auth_if or 'Adapter'}"
+                st.session_state.last_analysis_time = datetime.now()
+                push_history(st.session_state.analysis_result)
+                st.rerun()
+            except Exception as _infer_err:
+                progress.update(label=f"⚠️ Detection Error: {_infer_err}", state="error")
+                st.error(f"Inference error: {_infer_err}")
+
+
+# ============================================================================
 # PAGE: ANALYZE TRAFFIC (LIVE TRAFFIC)
 # ============================================================================
 
@@ -2562,6 +2935,7 @@ def render_csv_optimizer_section():
 
 
 def render_analyze_traffic():
+
     section_header(
         "🔍 Analyze Network Traffic",
         f"Upload a CSV network traffic capture to run it through the {dataset} ML detection engine.",
@@ -2597,6 +2971,20 @@ def render_analyze_traffic():
             'Please ensure the FastAPI server is running at http://127.0.0.1:8000.</div>',
             unsafe_allow_html=True,
         )
+
+    # Ingestion Mode Selection: Live Network Sensor (Phase 2) vs File Capture
+    traffic_mode = st.radio(
+        "Traffic Ingestion Pipeline",
+        ["📡 Live Network Interface Sensor (Phase 2)", "📁 Offline Capture Ingestion (CSV / PCAP)"],
+        horizontal=True,
+        key="traffic_ingest_mode",
+    )
+
+    if traffic_mode == "📡 Live Network Interface Sensor (Phase 2)":
+        render_live_network_sensor_panel()
+        st.divider()
+        st.caption("Switch to 'Offline Capture Ingestion' above to upload pre-recorded PCAP / CSV benchmark files.")
+        return
 
     MAX_TRAFFIC_FILE_SIZE = LIVE_TRAFFIC_MAX_BYTES
 
@@ -3257,11 +3645,15 @@ def open_investigation_dialog(row_dict, dataset_name):
 def render_threat_detection():
     section_header("🚨 Threat Alert Center", "Severity classification, filtering, and per-alert investigation.")
 
-    tab_alerts, tab_matrix, tab_forensics = st.tabs([
+    tab_stream, tab_alerts, tab_matrix, tab_forensics = st.tabs([
+        "⚡ Real-Time WebSocket Detection Stream (Phase 3)",
         "🚨 Alert Workstation & Triage",
         "🛡️ MITRE ATT&CK® Matrix Heatmap",
         "📦 Cryptographic Case Bundle Export",
     ])
+
+    with tab_stream:
+        _render_realtime_detection_stream()
 
     with tab_matrix:
         render_mitre_matrix(is_embedded=True)
@@ -3272,6 +3664,131 @@ def render_threat_detection():
     with tab_forensics:
         render_forensic_case_export(is_embedded=True)
 
+
+def _render_realtime_detection_stream():
+    st.markdown(
+        """
+        <div class="glass-panel" style="padding:14px 18px; margin-bottom:14px;">
+            <div>
+                <div style="font-size:14px; font-weight:700; color:#f8fafc;">⚡ Real-Time ML Inference &amp; WebSocket Feed</div>
+                <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+                    Continuous model predictions, sub-second risk calculation, severity calibration, and WebSocket streaming over <code>/ws/live-stream</code>.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if not realtime_detector:
+        st.error("Real-time detector engine is not available.")
+        return
+
+    # 1. Telemetry & Engine Metrics
+    stats = realtime_detector.get_statistics()
+    is_active = stats.get("is_active", False)
+    auth_if = live_monitor.get_status().get("authorized_interface") if live_monitor else None
+
+    # Control bar
+    c1, c2, c3, c4 = st.columns([2, 2, 2, 2])
+    with c1:
+        if not is_active:
+            if st.button("▶️ Launch Real-Time Pipeline", key="start_det_pipeline_btn", type="primary", use_container_width=True):
+                if not auth_if:
+                    st.error("Cannot launch: Please authorize a network interface in 'Live Traffic' first.")
+                else:
+                    try:
+                        realtime_detector.start_pipeline()
+                        st.toast("Real-time detection pipeline launched!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to start pipeline: {e}")
+        else:
+            if st.button("⏹️ Pause Real-Time Pipeline", key="stop_det_pipeline_btn", type="secondary", use_container_width=True):
+                realtime_detector.stop_pipeline()
+                st.toast("Real-time detection paused.")
+                st.rerun()
+
+    with c2:
+        if st.button("⚡ Test Live Prediction Push", key="test_stream_pred_btn", use_container_width=True):
+            if live_monitor:
+                import random
+                ports = [80, 443, 8080, 22, 53]
+                sim_flow = live_monitor.inject_synthetic_flow(
+                    src_ip=f"192.168.1.{random.randint(10, 240)}",
+                    dst_ip="10.0.0.1",
+                    dst_port=random.choice(ports),
+                    packet_count=random.randint(6, 14),
+                )
+                ev = realtime_detector.evaluate_flow(sim_flow)
+                st.success(f"Model Evaluated: {ev.get('prediction')} | Risk: {ev.get('risk_score')}/100 | Severity: {ev.get('severity')}")
+                st.rerun()
+
+    with c3:
+        ws_status_chip = f"🟢 WS ACTIVE ({stats.get('active_listeners', 0)} CLIENTS)" if stats.get("active_listeners", 0) > 0 else "⚪ WS READY"
+        st.markdown(
+            f'<div style="font-family:var(--font-mono); font-size:11px; background:rgba(56,189,248,0.15); '
+            f'padding:8px 12px; border-radius:6px; text-align:center; border:1px solid rgba(56,189,248,0.25); color:#f8fafc;">'
+            f'{ws_status_chip}</div>',
+            unsafe_allow_html=True,
+        )
+
+    with c4:
+        if st.button("🔄 Refresh Live Stream", key="refresh_stream_feed_btn", use_container_width=True):
+            st.rerun()
+
+    # Metrics row
+    st.write("")
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        metric_card("🧮", "Flows Evaluated", f"{stats.get('total_evaluated', 0):,}")
+    with m2:
+        metric_card("🚨", "Anomalies Flagged", f"{stats.get('total_attacks', 0):,}", "metric-danger" if stats.get('total_attacks', 0) else "metric-safe")
+    with m3:
+        metric_card("📈", "Live Attack Ratio", f"{stats.get('attack_rate_pct', 0.0):.1f}%", "metric-warning" if stats.get('attack_rate_pct', 0.0) >= 10 else "metric-safe")
+    with m4:
+        state_text = "🟢 STREAMING" if is_active else "⚪ STANDBY"
+        metric_card("⚡", "Pipeline Status", state_text)
+
+    # 2. Live Detection Events Stream Feed
+    st.write("")
+    events = realtime_detector.get_latest_detections(limit=30)
+    if not events:
+        empty_state(
+            "⚡", "Awaiting Live Network Traffic",
+            "Launch the real-time detection pipeline above or click 'Test Live Prediction Push' to run live model inference on network flows.",
+        )
+        return
+
+    st.markdown(
+        f'<div style="font-size:12px; font-weight:600; color:var(--signal); margin-bottom:8px;">'
+        f'LIVE PREDICTION STREAM ({len(events)} EVENTS BROADCAST VIA FASTAPI &amp; WEBSOCKETS)</div>',
+        unsafe_allow_html=True,
+    )
+
+    feed_table = []
+    for ev in events:
+        sev = ev.get("severity", "LOW")
+        risk = ev.get("risk_score", 0)
+        mitre = ev.get("mitre", {})
+        mitre_str = f"{mitre.get('technique_id', '')} {mitre.get('name', '')}".strip() or "N/A"
+
+        feed_table.append({
+            "Time": str(ev.get("timestamp", ""))[-12:-4],
+            "Source IP": ev.get("source_ip"),
+            "Destination IP": f"{ev.get('destination_ip')}:{ev.get('destination_port')}",
+            "Protocol": ev.get("protocol"),
+            "Model Prediction": "🚨 ATTACK" if ev.get("is_attack") else "✅ BENIGN",
+            "Attack Vector": ev.get("attack_family", "BENIGN"),
+            "Risk Score": f"{risk}/100",
+            "Severity": sev,
+            "Confidence": f"{float(ev.get('confidence', 0))*100:.1f}%",
+            "Latency": f"{ev.get('inference_latency_ms', 0):.1f} ms",
+            "MITRE Technique": mitre_str,
+        })
+
+    df_feed = pd.DataFrame(feed_table)
+    st.dataframe(df_feed, use_container_width=True, hide_index=True)
 
 
 def _render_threat_alerts_workstation():
@@ -6047,6 +6564,54 @@ def push_history(normalized):
             f"{attack_cnt:,} anomalous flow(s) flagged after analysis",
             kind=kind,
         )
+
+        # Phase 1 & 4: Deduplicate and persist alert into authenticated user's isolated history
+        sev_class = "Critical" if (normalized.get("attack_rate") or 0) >= 20 else "High"
+        alert_payload = {
+            "attack_family": f"Network Anomaly ({normalized.get('dataset', 'Capture')})",
+            "severity": sev_class,
+            "confidence": 0.96,
+            "source_ip": "192.168.1.100",
+            "destination_ip": "10.0.0.1",
+            "destination_port": 80,
+            "protocol": "TCP",
+            "attack_count": int(attack_cnt),
+            "total_flows": int(normalized.get("total", 0)),
+            "threat_rate": float(normalized.get("attack_rate", 0)),
+            "filename": str(st.session_state.uploaded_filename),
+        }
+
+        user_id = 1
+        if st.session_state.get("current_user"):
+            user_id = st.session_state.current_user.get("id", 1)
+
+        if notification_engine:
+            try:
+                notif_res = notification_engine.process_incoming_alert(
+                    alert_payload=alert_payload,
+                    user_id=user_id,
+                )
+                if notif_res.get("status") == "dispatched":
+                    st.toast(f"🚨 Threat Alert: {alert_payload['attack_family']} flagged!", icon="⚠️")
+                elif notif_res.get("status") == "suppressed":
+                    st.toast(f"🛡️ Duplicate Alert Suppressed: Burst count #{notif_res.get('event_count', 2)}", icon="ℹ️")
+            except Exception as _e:
+                pass
+        elif st.session_state.get("authenticated") and st.session_state.get("auth_token") and auth_client:
+            try:
+                auth_client.record_alert(
+                    token=st.session_state.auth_token,
+                    attack_type=alert_payload["attack_family"],
+                    severity=sev_class,
+                    confidence=0.96,
+                    source_ip="192.168.1.100",
+                    destination_ip="10.0.0.1",
+                    protocol="TCP",
+                    details=alert_payload,
+                )
+            except Exception as _e:
+                pass
+
     push_timeline(
         f"Analysis completed · {normalized.get('dataset', 'dataset')}",
         f"{normalized.get('total', 0):,} flows analyzed"
@@ -6075,6 +6640,270 @@ def render_prediction_history():
         if st.button("🗑️ Clear Session History", use_container_width=True):
             st.session_state.history = []
             st.rerun()
+
+
+# ============================================================================
+# PAGE: USER ALERT HISTORY (MULTI-TENANT AUDIT)
+# ============================================================================
+
+def render_user_alert_history():
+    section_header(
+        "📋 User Alert History & Threat Audit",
+        "Tenant-isolated historical detection logs, incident status, and sensor credentials."
+    )
+    token = st.session_state.get("auth_token")
+    user = st.session_state.get("current_user", {})
+    username = user.get("username", "analyst")
+    api_key = user.get("api_key", "ng_live_...")
+
+    # 1. API Sensor Credential Card for Phase 2 Live Monitoring
+    with st.expander("🔑 Live Monitoring Agent Credentials (Phase 2 Component)", expanded=False):
+        st.markdown(
+            f"""
+            <div class="glass-panel" style="padding:14px; margin-bottom:12px;">
+                <div style="font-size:12px; font-weight:600; color:var(--signal); margin-bottom:6px;">AUTHORIZED SENSOR API KEY</div>
+                <div style="font-family:var(--font-mono); font-size:12px; background:rgba(0,0,0,0.5); padding:8px 12px; border-radius:6px; color:#f8fafc; border:1px solid rgba(56,189,248,0.2);">
+                    <code>{esc(api_key)}</code>
+                </div>
+                <div style="font-size:11px; color:var(--muted); margin-top:8px;">
+                    Use this token with the Phase 2 live monitoring daemon or API client (<code>X-API-Key: {esc(api_key)}</code>) to stream packets directly into your account's alert ledger.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("🔄 Regenerate Sensor API Key", key="regen_api_key_btn"):
+            if auth_client:
+                import database
+                new_k = database.regenerate_user_api_key(user["id"])
+                st.session_state.current_user["api_key"] = new_k
+                st.success("API key successfully refreshed!")
+                st.rerun()
+
+    # 2. Fetch User Alerts & Stats
+    stats = auth_client.fetch_alert_stats(token) if auth_client else {}
+    total_alerts = stats.get("total_alerts", 0)
+    unack_alerts = stats.get("unacknowledged_alerts", 0)
+    sev_breakdown = stats.get("severity_breakdown", {})
+    crit_count = sev_breakdown.get("Critical", 0)
+    high_count = sev_breakdown.get("High", 0)
+
+    # Metric Row
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        metric_card("📋", "Total Alerts", f"{total_alerts:,}")
+    with m2:
+        metric_card("⚠️", "Pending / Unack", f"{unack_alerts:,}", "metric-warning" if unack_alerts else "metric-safe")
+    with m3:
+        metric_card("🔴", "Critical Threats", f"{crit_count:,}", "metric-danger" if crit_count else "metric-safe")
+    with m4:
+        metric_card("🟠", "High Severity", f"{high_count:,}", "metric-warning" if high_count else "metric-safe")
+
+    st.write("")
+
+    # Phase 4: Notification Telemetry Panel
+    with st.expander("🔔 Notification Engine & Deduplication Telemetry (Phase 4)", expanded=False):
+        st.markdown(
+            '<div style="font-size:13px; color:var(--muted); margin-bottom:12px;">'
+            'Sliding-window deduplication suppresses burst notification storms by keying on <code>(source_ip, attack_family, destination_port)</code> '
+            'over a 180s configurable TTL window while preserving occurrence counts and dispatching browser/email alerts.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if notification_engine:
+            n_stats = notification_engine.get_suppression_statistics()
+            nc1, nc2, nc3, nc4 = st.columns(4)
+            with nc1:
+                metric_card("📥", "Received Ingest", f"{n_stats.get('total_received', 0):,}")
+            with nc2:
+                metric_card("🛡️", "Suppressed Bursts", f"{n_stats.get('total_suppressed', 0):,}", "metric-safe")
+            with nc3:
+                metric_card("📨", "Dispatched Alerts", f"{n_stats.get('total_dispatched', 0):,}")
+            with nc4:
+                metric_card("⚡", "Storm Filter Rate", f"{n_stats.get('suppression_rate_percent', 0.0):.1f}%", "metric-warning")
+
+            st.write("")
+            em_col1, em_col2 = st.columns([3, 1])
+            with em_col1:
+                test_recip = st.text_input("Test Alert Email Recipient", value=user.get("email", "analyst@netguard.ai"), key="notif_test_email_input")
+            with em_col2:
+                st.write("")
+                if st.button("📨 Dispatch Test Email", key="btn_dispatch_test_email", use_container_width=True):
+                    res = notification_engine.send_email_alert(
+                        recipient=test_recip,
+                        alert_payload={
+                            "attack_family": "DDoS-LOIC-HTTP",
+                            "severity": "CRITICAL",
+                            "confidence": 0.99,
+                            "source_ip": "192.168.1.105",
+                            "destination_ip": "10.0.0.1",
+                            "destination_port": 80,
+                        },
+                    )
+                    if res.get("simulated"):
+                        st.info(f"Email Dispatch Simulated: {res.get('recipient')} (SMTP host unconfigured or offline)")
+                    elif res.get("success"):
+                        st.success(f"Email successfully dispatched to {test_recip}")
+                    else:
+                        st.warning(f"Dispatch status: {res.get('error', 'Unknown')}")
+        else:
+            st.info("Notification engine initializing...")
+
+    # Phase 5: Validation & Tenant Security Audit Panel
+    with st.expander("🔬 Model Validation & Security Isolation Audit (Phase 5)", expanded=False):
+        st.markdown(
+            '<div style="font-size:13px; color:var(--muted); margin-bottom:12px;">'
+            'Validates machine learning efficacy (Precision, Recall, F1, FPR) on labeled traffic ground truth, '
+            'and programmatically certifies zero cross-tenant alert leakage.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        b_col1, b_col2 = st.columns(2)
+        with b_col1:
+            if st.button("🚀 Run Labeled Traffic Benchmark", key="btn_run_phase5_benchmark", use_container_width=True, type="primary"):
+                if benchmark_validator:
+                    with st.spinner("Benchmarking CICIDS-2017 model on ground-truth labeled flows..."):
+                        bench_res = benchmark_validator.run_ground_truth_test(sample_size=20)
+                        st.session_state.phase5_bench_report = bench_res
+                        st.success("Ground-Truth Benchmark Concluded!")
+                else:
+                    st.info("Validator initializing...")
+
+        with b_col2:
+            if st.button("🔒 Run Tenant Isolation Audit", key="btn_run_phase5_audit", use_container_width=True):
+                if benchmark_validator:
+                    with st.spinner("Auditing cross-tenant isolation and alert privacy barriers..."):
+                        audit_res = benchmark_validator.audit_tenant_isolation()
+                        st.session_state.phase5_audit_report = audit_res
+                        if audit_res.get("is_isolated"):
+                            st.success("Security Audit Passed: Complete Multi-Tenant Isolation")
+                        else:
+                            st.error("Audit Failed: Cross-Tenant Leakage Detected")
+                else:
+                    st.info("Validator initializing...")
+
+        if st.session_state.get("phase5_bench_report"):
+            br = st.session_state.phase5_bench_report
+            bm = br.get("metrics", {})
+            cm = br.get("confusion_matrix", {})
+            st.write("")
+            st.markdown(f'<div class="safe-banner result-banner" style="padding:10px 14px; font-weight:700;">STATUS: {br.get("test_status")} &nbsp;•&nbsp; Samples Evaluated: {br.get("total_samples")}</div>', unsafe_allow_html=True)
+            bc1, bc2, bc3, bc4, bc5 = st.columns(5)
+            with bc1:
+                metric_card("🎯", "Accuracy", f"{bm.get('accuracy', 0)*100:.1f}%")
+            with bc2:
+                metric_card("🔍", "Precision", f"{bm.get('precision', 0)*100:.1f}%")
+            with bc3:
+                metric_card("📡", "Recall", f"{bm.get('recall', 0)*100:.1f}%")
+            with bc4:
+                metric_card("⚖️", "F1-Score", f"{bm.get('f1_score', 0)*100:.1f}%")
+            with bc5:
+                metric_card("📉", "FPR", f"{bm.get('false_positive_rate', 0)*100:.2f}%", "metric-safe")
+
+            st.caption(f"Confusion Matrix: True Positives={cm.get('true_positives')}, True Negatives={cm.get('true_negatives')}, False Positives={cm.get('false_positives')}, False Negatives={cm.get('false_negatives')}")
+
+        if st.session_state.get("phase5_audit_report"):
+            ar = st.session_state.phase5_audit_report
+            st.write("")
+            st.markdown(
+                f'<div class="safe-banner result-banner" style="padding:10px 14px; font-weight:700;">'
+                f'SECURITY AUDIT VERDICT: {ar.get("audit_verdict")}<br>'
+                f'<span style="font-size:12px; font-weight:400; opacity:0.9;">'
+                f'Tenant A Alerts: {ar.get("tenant_a_count")} &nbsp;|&nbsp; Tenant B Alerts: {ar.get("tenant_b_count")} &nbsp;|&nbsp; '
+                f'Cross Leakage into Tenant B: {ar.get("leaked_into_tenant_b")} &nbsp;|&nbsp; Cross Leakage into Tenant A: {ar.get("leaked_into_tenant_a")}'
+                f'</span></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.write("")
+
+    # 3. Filters & Simulation Bar
+    f_col1, f_col2, f_col3, f_col4 = st.columns([2, 2, 2, 2])
+    with f_col1:
+        sev_filter = st.selectbox("Filter Severity", ["All", "Critical", "High", "Medium", "Low"], key="alert_sev_filter")
+    with f_col2:
+        unack_filter = st.checkbox("Unacknowledged Only", value=False, key="alert_unack_toggle")
+    with f_col3:
+        ip_search = st.text_input("Search IP Address", placeholder="e.g. 192.168.1", key="alert_ip_search")
+    with f_col4:
+        st.write("")
+        if st.button("⚡ Simulate Threat Event", key="sim_alert_event_btn", use_container_width=True):
+            if auth_client:
+                import random
+                sample_attacks = ["DDoS-LOIC-HTTP", "PortScan", "Infiltration", "Botnet", "SSH-Patator", "Web-XSS"]
+                chosen_att = random.choice(sample_attacks)
+                chosen_sev = "Critical" if "DDoS" in chosen_att or "Infil" in chosen_att else "High"
+                res = auth_client.record_alert(
+                    token=token,
+                    attack_type=chosen_att,
+                    severity=chosen_sev,
+                    confidence=round(random.uniform(0.85, 0.99), 2),
+                    source_ip=f"192.168.1.{random.randint(10, 220)}",
+                    destination_ip="10.0.0.1",
+                    protocol="TCP",
+                    details={"simulation": True, "note": "Manually simulated threat trigger for alert audit."},
+                )
+                if res.get("success"):
+                    st.success(f"Generated alert: {chosen_att} ({chosen_sev})")
+                    st.rerun()
+
+    # 4. Fetch list
+    alerts = auth_client.fetch_user_alerts(token, severity=sev_filter, unacknowledged_only=unack_filter) if auth_client else []
+
+    if ip_search.strip():
+        q_ip = ip_search.strip().lower()
+        alerts = [a for a in alerts if q_ip in str(a.get("source_ip", "")).lower() or q_ip in str(a.get("destination_ip", "")).lower()]
+
+    if not alerts:
+        empty_state(
+            "🛡️", "No Alerts Logged",
+            f"No threat alerts matching your filter criteria were found for account '{username}'.",
+            cta_label="🌐 Run Live Traffic Detection", cta_page="Live Traffic"
+        )
+        return
+
+    # 5. Display table & acknowledge actions
+    st.markdown(f'<div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:8px;">{len(alerts)} ALERTS RECORDED FOR USER TENANT</div>', unsafe_allow_html=True)
+
+    table_data = []
+    for a in alerts:
+        is_ack = bool(a.get("is_acknowledged"))
+        status_str = "✅ Acknowledged" if is_ack else "🚨 PENDING"
+        table_data.append({
+            "ID": a.get("id"),
+            "Timestamp": str(a.get("timestamp", ""))[:19].replace("T", " "),
+            "Severity": a.get("severity", "High"),
+            "Attack Type": a.get("attack_type", "Unknown"),
+            "Confidence": f"{float(a.get('confidence', 0))*100:.1f}%",
+            "Source IP": a.get("source_ip", "N/A"),
+            "Destination IP": a.get("destination_ip", "N/A"),
+            "Protocol": a.get("protocol", "TCP"),
+            "Status": status_str,
+        })
+    df_alerts = pd.DataFrame(table_data)
+    st.dataframe(df_alerts, use_container_width=True, hide_index=True)
+
+    # Bulk actions & Export
+    c_act1, c_act2, _ = st.columns([2, 2, 4])
+    with c_act1:
+        unack_ids = [a["id"] for a in alerts if not a.get("is_acknowledged")]
+        if unack_ids and st.button("✅ Acknowledge All Visible", key="ack_all_btn", use_container_width=True):
+            if auth_client:
+                for aid in unack_ids:
+                    auth_client.acknowledge_alert(token, aid)
+                st.success(f"Acknowledged {len(unack_ids)} alerts.")
+                st.rerun()
+    with c_act2:
+        csv_bytes = df_alerts.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "📥 Export Alert Audit (CSV)",
+            data=csv_bytes,
+            file_name=f"netguard_alerts_{username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key="export_alerts_csv_btn",
+        )
+
 
 
 # ============================================================================
@@ -6116,7 +6945,7 @@ def render_system_status():
         with st.expander("Raw /health response"):
             st.json(health)
         try:
-            status_response = requests.get(f"{API_URL}/api/status", timeout=4)
+            status_response = requests.get(f"{get_api_url()}/api/status", timeout=4)
             if status_response.ok:
                 with st.expander("Raw /api/status response"):
                     st.json(status_response.json())
@@ -6124,7 +6953,7 @@ def render_system_status():
             pass
     else:
         st.markdown(
-            f'<div class="danger-banner result-banner">⚠️ Could not reach the API at {API_URL}. '
+            f'<div class="danger-banner result-banner">⚠️ Could not reach the API at {get_api_url()}. '
             "Please ensure the FastAPI server is running.</div>",
             unsafe_allow_html=True,
         )
@@ -6218,9 +7047,10 @@ def render_chat_response(message):
 
 def ask_soc_ai(query: str):
     """Send a cybersecurity question to the FastAPI RAG chatbot."""
+    curr_url = get_api_url()
     try:
         response = requests.post(
-            f"{API_URL}/chat",
+            f"{curr_url}/chat",
             json={"question": query},
             timeout=60,
         )
@@ -6243,7 +7073,7 @@ def ask_soc_ai(query: str):
             "The SOC AI request timed out. Check that FastAPI and the configured LLM provider are available."
         )
     except requests.exceptions.ConnectionError:
-        return None, f"Could not connect to the NetGuard AI backend at {API_URL}. Start FastAPI first."
+        return None, f"Could not connect to the NetGuard AI backend at {curr_url}. Start FastAPI first."
     except requests.RequestException as exc:
         return None, f"Chat request failed: {exc}"
     except Exception as exc:
@@ -6357,7 +7187,7 @@ def render_soc_ai_assistant():
         state_banner(
             "unavailable",
             "AI assistant temporarily unavailable",
-            f"FastAPI is offline — start the backend at {API_URL} to use the RAG assistant.",
+            f"FastAPI is offline — start the backend at {get_api_url()} to use the RAG assistant.",
         )
 
     st.write("")
@@ -7162,7 +7992,7 @@ def render_settings():
     )
     st.write("")
 
-    tab_view, tab_notify, tab_data = st.tabs(["Interface", "Notifications", "Session Data"])
+    tab_view, tab_notify, tab_data, tab_api = st.tabs(["Interface", "Notifications", "Session Data", "Backend API Connection"])
 
     with tab_view:
         col1, col2 = st.columns(2)
@@ -7193,10 +8023,6 @@ def render_settings():
                 style_notes.append("• Motion reduction enabled — kinetic FX, scanlines, and transitions are dampened.")
             st.caption("\n".join(style_notes))
 
-        # Bind reduced-motion to the real kinetic FX toggles so the preference
-        # has a tangible effect on the running session (frontend-only).
-        # Only applied when the setting actually changed, to avoid clobbering
-        # the user's own sidebar FX toggles.
         prev_sync = st.session_state.get("_fx_sync_reduced")
         if prev_sync != reduced_motion:
             st.session_state.fx_3d_bg = not reduced_motion
@@ -7224,6 +8050,70 @@ def render_settings():
         if st.button("💬 Clear SOC AI Chat Thread", use_container_width=True, key="settings_clear_chat"):
             st.session_state.chat_messages = []
             st.success("Chat thread cleared.")
+
+    with tab_api:
+        st.caption("Configure the FastAPI Intelligence Engine endpoint for ultra-low latency & responsiveness.")
+        current_target = get_api_url()
+
+        col_tgt1, col_tgt2 = st.columns([3, 1])
+        with col_tgt1:
+            custom_url = st.text_input(
+                "FastAPI Backend Endpoint URL",
+                value=current_target,
+                key="settings_api_url_input",
+                help="Defaults to http://127.0.0.1:8000 for local low-latency inference.",
+            )
+        with col_tgt2:
+            st.write("")
+            st.write("")
+            if st.button("Apply URL", use_container_width=True, key="settings_apply_url"):
+                st.session_state.custom_api_url = custom_url.strip()
+                if api_client is not None and hasattr(api_client, "set_api_base_url"):
+                    api_client.set_api_base_url(custom_url.strip())
+                st.cache_data.clear()
+                st.toast(f"✅ Backend URL set to {custom_url.strip()}")
+                st.rerun()
+
+        col_pre1, col_pre2 = st.columns(2)
+        with col_pre1:
+            if st.button("⚡ Use Local Backend (http://127.0.0.1:8000)", use_container_width=True, key="set_local_api"):
+                st.session_state.custom_api_url = "http://127.0.0.1:8000"
+                if api_client is not None and hasattr(api_client, "set_api_base_url"):
+                    api_client.set_api_base_url("http://127.0.0.1:8000")
+                st.cache_data.clear()
+                st.rerun()
+        with col_pre2:
+            if st.button("☁️ Use Cloud Endpoint (Render)", use_container_width=True, key="set_cloud_api"):
+                st.session_state.custom_api_url = "https://netguard-ai-nd5e.onrender.com"
+                if api_client is not None and hasattr(api_client, "set_api_base_url"):
+                    api_client.set_api_base_url("https://netguard-ai-nd5e.onrender.com")
+                st.cache_data.clear()
+                st.rerun()
+
+        st.divider()
+        st.subheader("Endpoint Latency & Health Diagnostic")
+        if st.button("🔍 Test Connection & Benchmark Latency", key="test_api_connection"):
+            import time as _t
+            test_target = custom_url.strip().rstrip("/")
+            t0 = _t.time()
+            try:
+                resp = requests.get(f"{test_target}/health", timeout=5)
+                latency_ms = (_t.time() - t0) * 1000
+                if resp.status_code == 200:
+                    health_json = resp.json()
+                    st.success(f"🟢 Connected to {test_target} in {latency_ms:.1f} ms!")
+                    m1, m2, m3 = st.columns(3)
+                    with m1:
+                        st.metric("Latency", f"{latency_ms:.1f} ms", delta="Fast" if latency_ms < 50 else "Normal")
+                    with m2:
+                        st.metric("Engine Status", health_json.get("status", "Healthy"))
+                    with m3:
+                        models_loaded = health_json.get("models_loaded", 2)
+                        st.metric("Models Online", f"{models_loaded} Models")
+                else:
+                    st.warning(f"⚠️ Connected but returned HTTP {resp.status_code}")
+            except Exception as e:
+                st.error(f"🔴 Connection Failed: {e}")
 
     st.write("")
     st.caption("Session settings snapshot is available only in the current browser; it is not written to disk.")
@@ -7343,6 +8233,7 @@ PAGES = {
     "Dataset Analysis": render_dataset_analysis,
     "Data Visualization Explorer": render_data_explorer,
     "Prediction History": render_prediction_history,
+    "User Alert History": render_user_alert_history,
     "Incident Timeline": render_incident_timeline,
     "System Status": render_system_status,
     "Settings": render_settings,

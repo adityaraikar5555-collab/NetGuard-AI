@@ -301,29 +301,9 @@ def _call_gemini(prompt: str, cfg, timeout: float = 15.0) -> Optional[str]:
                         return
                     print(f"[GEMINI] No complete (finishReason==STOP) text from model={model}")
                 elif response.status_code in (429, 503):
-                    # Provider overloaded / rate-limited and usually recovers
-                    # within a second. Do a single quick retry, then fall
-                    # through to the fast fallback provider so the end-to-end
-                    # response time stays within the 3-5s target.
-                    print(f"[GEMINI RETRY] model={model} status={response.status_code}")
-                    for _ in range(1):
-                        time.sleep(0.5)
-                        try:
-                            retry = requests.post(
-                                url,
-                                params=params,
-                                json=payload,
-                                timeout=timeout,
-                            )
-                            if retry.status_code == 200:
-                                text = _gemini_answer_text(retry.json())
-                                if text:
-                                    print(f"[LLM] Gemini response generated using model={model}")
-                                    result_box["answer"] = text
-                                    return
-                            print(f"[GEMINI RETRY] model={model} status={retry.status_code}")
-                        except requests.exceptions.RequestException as error:
-                            print(f"[GEMINI RETRY ERROR] model={model}: {error}")
+                    # Provider overloaded or rate-limited. Fast-fail to fallback provider
+                    # so the response time stays snappy and does not block the user.
+                    print(f"[GEMINI 429/503] model={model} status={response.status_code}. Fast-failing to fallback provider.")
                     break
                 else:
                     print(f"[GEMINI WARNING] model={model} returned status={response.status_code}")

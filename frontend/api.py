@@ -1,30 +1,43 @@
+import os
 import requests
 
 
-API_BASE_URL = "https://netguard-ai-nd5e.onrender.com"
+API_BASE_URL = os.environ.get("NETGUARD_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
-def get_health():
+def set_api_base_url(url: str):
+    global API_BASE_URL
+    API_BASE_URL = url.rstrip("/")
+
+
+def get_api_base_url() -> str:
+    return API_BASE_URL
+
+
+def get_health(base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/")
     response = requests.get(
-        f"{API_BASE_URL}/health",
+        f"{url}/health",
         timeout=10
     )
     response.raise_for_status()
     return response.json()
 
 
-def get_model_info():
+def get_model_info(base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/")
     response = requests.get(
-        f"{API_BASE_URL}/model-info",
+        f"{url}/model-info",
         timeout=10
     )
     response.raise_for_status()
     return response.json()
 
 
-def predict_cicids(features):
+def predict_cicids(features, base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/")
     response = requests.post(
-        f"{API_BASE_URL}/predict/cicids",
+        f"{url}/predict/cicids",
         json={"features": features},
         timeout=30
     )
@@ -32,9 +45,10 @@ def predict_cicids(features):
     return response.json()
 
 
-def predict_nsl_kdd(features):
+def predict_nsl_kdd(features, base_url: str = None):
+    url = (base_url or API_BASE_URL).rstrip("/")
     response = requests.post(
-        f"{API_BASE_URL}/predict/nsl-kdd",
+        f"{url}/predict/nsl-kdd",
         json={"features": features},
         timeout=30
     )

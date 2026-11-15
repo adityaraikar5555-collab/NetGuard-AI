@@ -441,6 +441,14 @@ class NetworkPredictionEngine:
                     f"NSL-KDD feature: {column}"
                 )
 
+            # Support pre-encoded integer categoricals if provided
+            numeric_check = pd.to_numeric(X[column], errors="coerce")
+            if numeric_check.notna().all() and (numeric_check % 1 == 0).all():
+                int_vals = numeric_check.astype(int)
+                if (int_vals >= 0).all() and (int_vals < len(encoder.classes_)).all():
+                    X[column] = int_vals
+                    continue
+
             values = (
                 X[column]
                 .astype(str)

@@ -6,7 +6,10 @@ from sklearn.preprocessing import LabelEncoder
 
 
 def load_dataset(data_path, sample_per_file=50000):
-    csv_files = glob.glob(os.path.join(data_path, "*.csv"))
+    if os.path.isfile(data_path):
+        csv_files = [data_path]
+    else:
+        csv_files = glob.glob(os.path.join(data_path, "*.csv"))
 
     if len(csv_files) == 0:
         raise FileNotFoundError("No CSV files found in data path.")
@@ -28,6 +31,7 @@ def load_dataset(data_path, sample_per_file=50000):
 
 def clean_dataset(df):
     df.columns = df.columns.str.strip()
+    df = df.loc[:, ~df.columns.duplicated()].copy()
 
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     df.dropna(inplace=True)
