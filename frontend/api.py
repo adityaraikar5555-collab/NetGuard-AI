@@ -1,8 +1,28 @@
 import os
 import requests
 
+CLOUD_RENDER_API_URL = "https://netguard-ai-nd5e.onrender.com"
+LOCAL_API_URL = "http://127.0.0.1:8000"
 
-API_BASE_URL = os.environ.get("NETGUARD_API_URL", "http://127.0.0.1:8000").rstrip("/")
+
+def _detect_default_api_url() -> str:
+    env_val = os.environ.get("NETGUARD_API_URL")
+    if env_val:
+        return env_val.rstrip("/")
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.3)
+        res = sock.connect_ex(("127.0.0.1", 8000))
+        sock.close()
+        if res == 0:
+            return LOCAL_API_URL
+    except Exception:
+        pass
+    return CLOUD_RENDER_API_URL
+
+
+API_BASE_URL = _detect_default_api_url()
 
 
 def set_api_base_url(url: str):
@@ -16,9 +36,10 @@ def get_api_base_url() -> str:
 
 def get_health(base_url: str = None):
     url = (base_url or API_BASE_URL).rstrip("/")
+    timeout = 30 if "onrender.com" in url else 10
     response = requests.get(
         f"{url}/health",
-        timeout=10
+        timeout=timeout
     )
     response.raise_for_status()
     return response.json()
@@ -26,9 +47,10 @@ def get_health(base_url: str = None):
 
 def get_model_info(base_url: str = None):
     url = (base_url or API_BASE_URL).rstrip("/")
+    timeout = 30 if "onrender.com" in url else 10
     response = requests.get(
         f"{url}/model-info",
-        timeout=10
+        timeout=timeout
     )
     response.raise_for_status()
     return response.json()

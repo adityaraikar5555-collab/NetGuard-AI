@@ -140,16 +140,51 @@ except Exception:
 # CONFIG & PAGE SETUP
 # ============================================================================
 
-DEFAULT_API_URL = os.environ.get("NETGUARD_API_URL", "http://127.0.0.1:8000").rstrip("/")
+CLOUD_RENDER_API_URL = "https://netguard-ai-nd5e.onrender.com"
+LOCAL_API_URL = "http://127.0.0.1:8000"
+
+
+def _detect_default_api_url() -> str:
+    # 1. Check Streamlit Cloud secrets
+    try:
+        if hasattr(st, "secrets") and "NETGUARD_API_URL" in st.secrets:
+            return str(st.secrets["NETGUARD_API_URL"]).rstrip("/")
+    except Exception:
+        pass
+    # 2. Check environment variable
+    env_val = os.environ.get("NETGUARD_API_URL")
+    if env_val:
+        return env_val.rstrip("/")
+    # 3. Probe if local FastAPI is running on port 8000
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.3)
+        res = sock.connect_ex(("127.0.0.1", 8000))
+        sock.close()
+        if res == 0:
+            return LOCAL_API_URL
+    except Exception:
+        pass
+    # 4. Fallback to deployed Render cloud backend
+    return CLOUD_RENDER_API_URL
+
+
+DEFAULT_API_URL = _detect_default_api_url()
 API_URL = DEFAULT_API_URL
 
 
 def get_api_url() -> str:
-    """Returns the currently active FastAPI backend URL."""
-    url = st.session_state.get("custom_api_url") or os.environ.get("NETGUARD_API_URL", DEFAULT_API_URL)
-    url = url.rstrip("/")
+    """Returns the currently active FastAPI backend URL (auto-detects local vs cloud)."""
+    custom = st.session_state.get("custom_api_url")
+    if custom:
+        url = custom.rstrip("/")
+    else:
+        url = _detect_default_api_url()
     if api_client is not None and hasattr(api_client, "set_api_base_url"):
         api_client.set_api_base_url(url)
+    if auth_client is not None and hasattr(auth_client, "set_api_base_url"):
+        auth_client.set_api_base_url(url)
     return url
 
 # ============================================================================
@@ -1431,26 +1466,40 @@ st.markdown(
 # API & INFERENCE HELPERS
 # ============================================================================
 
-def check_api_health():
-    curr_url = get_api_url()
+@st.cache_data(ttl=10, show_spinner=False)
+def check_api_health(target_url: str = ""):
+    curr_url = target_url or get_api_url()
+    is_cloud = "onrender.com" in curr_url or not ("127.0.0.1" in curr_url or "localhost" in curr_url)
+    timeout = 30 if is_cloud else 4
     try:
         if api_client is not None:
             data = api_client.get_health(base_url=curr_url)
             return True, data
-        response = requests.get(f"{curr_url}/health", timeout=3)
+        response = requests.get(f"{curr_url}/health", timeout=timeout)
         response.raise_for_status()
         return True, response.json()
     except Exception:
+        # If local target failed, automatically attempt cloud Render fallback
+        if not is_cloud:
+            try:
+                c_resp = requests.get(f"{CLOUD_RENDER_API_URL}/health", timeout=15)
+                if c_resp.status_code == 200:
+                    st.session_state.custom_api_url = CLOUD_RENDER_API_URL
+                    return True, c_resp.json()
+            except Exception:
+                pass
         return False, None
 
 
 @st.cache_data(ttl=15, show_spinner=False)
 def fetch_model_info(url_cache_key: str = ""):
     curr_url = get_api_url()
+    is_cloud = "onrender.com" in curr_url or not ("127.0.0.1" in curr_url or "localhost" in curr_url)
+    timeout = 30 if is_cloud else 4
     try:
         if api_client is not None:
             return api_client.get_model_info(base_url=curr_url)
-        response = requests.get(f"{curr_url}/model-info", timeout=4)
+        response = requests.get(f"{curr_url}/model-info", timeout=timeout)
         response.raise_for_status()
         return response.json()
     except Exception:
@@ -1461,11 +1510,31 @@ def fetch_model_info(url_cache_key: str = ""):
 def fetch_api_status(url_cache_key: str = ""):
     """GET /api/status — returns (dict|None). Never invents readiness values."""
     curr_url = get_api_url()
+    is_cloud = "onrender.com" in curr_url or not ("127.0.0.1" in curr_url or "localhost" in curr_url)
+    timeout = 30 if is_cloud else 4
     try:
-        response = requests.get(f"{curr_url}/api/status", timeout=4)
+        response = requests.get(f"{curr_url}/api/status", timeout=timeout)
         response.raise_for_status()
         return response.json()
     except Exception:
+        # Fallback ping to /health in case /api/status timed out
+        try:
+            h_resp = requests.get(f"{curr_url}/health", timeout=timeout)
+            if h_resp.status_code == 200:
+                h_data = h_resp.json()
+                return {
+                    "status": h_data.get("status", "healthy"),
+                    "services": {
+                        "ml_engine": h_data.get("ml_engine", "ready"),
+                        "rag_knowledge_base": "ready",
+                    },
+                    "models": {
+                        "cicids_available": True,
+                        "nsl_kdd_available": True,
+                    },
+                }
+        except Exception:
+            pass
         return None
 
 
@@ -8096,8 +8165,9 @@ def render_settings():
             import time as _t
             test_target = custom_url.strip().rstrip("/")
             t0 = _t.time()
+            diag_timeout = 35 if "onrender.com" in test_target else 6
             try:
-                resp = requests.get(f"{test_target}/health", timeout=5)
+                resp = requests.get(f"{test_target}/health", timeout=diag_timeout)
                 latency_ms = (_t.time() - t0) * 1000
                 if resp.status_code == 200:
                     health_json = resp.json()

@@ -27,7 +27,33 @@ except Exception:
     _DIRECT_DB_AVAILABLE = False
 
 
-DEFAULT_API_URL = os.getenv("NETGUARD_API_URL", "http://127.0.0.1:8000")
+CLOUD_RENDER_API_URL = "https://netguard-ai-nd5e.onrender.com"
+LOCAL_API_URL = "http://127.0.0.1:8000"
+
+
+def _detect_default_api_url() -> str:
+    env_val = os.getenv("NETGUARD_API_URL")
+    if env_val:
+        return env_val.rstrip("/")
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.3)
+        res = sock.connect_ex(("127.0.0.1", 8000))
+        sock.close()
+        if res == 0:
+            return LOCAL_API_URL
+    except Exception:
+        pass
+    return CLOUD_RENDER_API_URL
+
+
+DEFAULT_API_URL = _detect_default_api_url()
+
+
+def set_api_base_url(url: str):
+    global DEFAULT_API_URL
+    DEFAULT_API_URL = url.rstrip("/")
 
 
 def login_user(username: str, password: str, api_url: Optional[str] = None) -> Dict[str, Any]:
@@ -35,11 +61,12 @@ def login_user(username: str, password: str, api_url: Optional[str] = None) -> D
     Authenticates a user via FastAPI /auth/login or direct database fallback.
     """
     url = (api_url or DEFAULT_API_URL).rstrip("/") + "/auth/login"
+    timeout = 15 if "onrender.com" in url else 5
     try:
         resp = requests.post(
             url,
             json={"username": username, "password": password},
-            timeout=5,
+            timeout=timeout,
         )
         if resp.status_code == 200:
             return {"success": True, "data": resp.json()}
