@@ -40,6 +40,14 @@ except Exception:
     except Exception:
         global_threat_map_engine = None
 
+try:
+    from zero_day_engine import zero_day_engine
+except Exception:
+    try:
+        from src.zero_day_engine import zero_day_engine
+    except Exception:
+        zero_day_engine = None
+
 router = APIRouter(tags=["Real-Time Detection & WebSocket Stream"])
 
 
@@ -370,4 +378,76 @@ def pulse_global_threats(req: ThreatPulseRequest):
         "events": [asdict(e) if hasattr(e, "__dataclass_fields__") else e for e in pulsed],
         "summary": global_threat_map_engine.get_summary_metrics(),
     }
+
+
+# ==============================================================================
+# UNSUPERVISED AUTOENCODER (ZERO-DAY ENGINE) ENDPOINTS
+# ==============================================================================
+
+class ZeroDayScoreRequest(BaseModel):
+    features: Dict[str, Any]
+
+
+class ZeroDayFusionRequest(BaseModel):
+    rf_prediction: str = Field(default="BENIGN")
+    rf_probability: float = Field(default=0.0)
+    features: Dict[str, Any]
+
+
+@router.get("/detection/zero-day/status")
+def get_zero_day_engine_status():
+    """
+    Returns the operational parameters, reconstruction threshold tau,
+    and latent compression dimensions of the Unsupervised Autoencoder.
+    """
+    if zero_day_engine is None or not zero_day_engine.is_loaded:
+        raise HTTPException(status_code=503, detail="Zero-Day Autoencoder engine not loaded.")
+
+    return {
+        "status": "ready",
+        "input_dimensions": len(zero_day_engine.feature_names),
+        "latent_bottleneck": zero_day_engine.latent_dim,
+        "compression_ratio": f"{round((1 - zero_day_engine.latent_dim / len(zero_day_engine.feature_names)) * 100, 1)}%",
+        "threshold_90": zero_day_engine.threshold_90,
+        "threshold_95_tau": zero_day_engine.threshold_95,
+        "threshold_99": zero_day_engine.threshold_99,
+        "benign_mean_mse": zero_day_engine.benign_mean_mse,
+    }
+
+
+@router.post("/detection/zero-day/score")
+def score_zero_day_flow(req: ZeroDayScoreRequest):
+    """
+    Passes a network flow through the deep Autoencoder, calculating reconstruction error,
+    novelty anomaly score, and top 5 feature attribution residuals.
+    """
+    if zero_day_engine is None or not zero_day_engine.is_loaded:
+        raise HTTPException(status_code=503, detail="Zero-Day Autoencoder engine not loaded.")
+
+    result = zero_day_engine.score_flow(req.features)
+    return {
+        "status": "success",
+        "analysis": result,
+    }
+
+
+@router.post("/detection/zero-day/fuse")
+def fuse_dual_engine(req: ZeroDayFusionRequest):
+    """
+    Synthesizes Supervised Random Forest predictions with Unsupervised Autoencoder residuals
+    to detect zero-day exploits that bypassed supervised classification.
+    """
+    if zero_day_engine is None or not zero_day_engine.is_loaded:
+        raise HTTPException(status_code=503, detail="Zero-Day Autoencoder engine not loaded.")
+
+    verdict = zero_day_engine.dual_engine_fusion(
+        rf_prediction=req.rf_prediction,
+        rf_probability=req.rf_probability,
+        flow_features=req.features,
+    )
+    return {
+        "status": "success",
+        "verdict": verdict,
+    }
+
 

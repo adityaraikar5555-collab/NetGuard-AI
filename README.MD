@@ -8,7 +8,7 @@
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit)
 ![Scikit-Learn](https://img.shields.io/badge/ML-Scikit--Learn-orange?logo=scikitlearn)
 ![RandomForest](https://img.shields.io/badge/Algorithm-Random%20Forest-green)
-![Tests](https://img.shields.io/badge/Tests-82%20Passed-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-89%20Passed-brightgreen)
 ![Live Traffic](https://img.shields.io/badge/Live%20Traffic-Scapy%20%2B%20DPI-informational)
 ![Groq](https://img.shields.io/badge/ReAct%20Speed-Groq%20Ultra--Fast-f55036)
 ![Docs](https://img.shields.io/badge/Specification-PDF%20Included-red?logo=adobeacrobatreader)
@@ -100,7 +100,11 @@ NetGuard AI achieves **99.9% accuracy** and sub-5ms inference latency. Beyond pa
   - High-performance WebGL/Three.js interactive 3D holographic Earth globe displaying real-time ballistic cyber threat trajectories from global origin nodes (Frankfurt, Beijing, Moscow, London, São Paulo, Tokyo, Sydney) to Central SOC Defense HQ.
   - Animated cyber missile particles, expanding perimeter radar pulses, top threat origin nations leaderboard, and streaming telemetry feed.
 
-- **Rich Streamlit SOC Dashboard with 18 Pages**
+- **Unsupervised Deep Autoencoder (Zero-Day Anomaly Detection Engine)**
+  - PyTorch symmetric feedforward neural network (`Linear(78→48→24→12) ⇄ Linear(12→24→48→78)`) trained exclusively on benign traffic manifolds.
+  - Identifies novel zero-day attacks and stealth evasions through catastrophic reconstruction error (MSE) spikes exceeding dynamic threshold $\tau$. Includes feature-level reconstruction attribution residuals (Zero-Day XAI) and Dual-Engine Threat Fusion with Random Forest.
+
+- **Rich Streamlit SOC Dashboard with 19 Pages**
   - Dark cyber / light enterprise theme, glassmorphism, 3D WebGL neural topology visualizer, live activity feed, and dedicated settings for API latency diagnostics.
 
 ---

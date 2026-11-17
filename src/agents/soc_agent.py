@@ -455,7 +455,10 @@ class NativeReActSOCAgent:
         xai = raw_observations.get("xai_explain_flow", {})
         threat = raw_observations.get("threat_intel_lookup", {})
         mitre = raw_observations.get("soar_mitre_mapping", {})
-        containment = raw_observations.get("soar_generate_containment", {})
+        containment = raw_observations.get("soar_generate_containment")
+        if not containment or not isinstance(containment, dict) or "firewall_rules" not in containment:
+            soar_tool = self.registry.get("soar_generate_containment")
+            containment = soar_tool.execute(src_ip=src_ip, dst_port=dst_port, proto="tcp", severity=severity) if soar_tool else {}
 
         threat_family = mc.get("attack_family", "Anomalous Network Activity")
         confidence = float(mc.get("confidence", max(initial_prob, 0.85)))
