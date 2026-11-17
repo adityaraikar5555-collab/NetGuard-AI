@@ -112,6 +112,7 @@ try:
     from src.notification_engine import notification_engine
     from src.benchmark_validator import benchmark_validator
     from src.attack_simulator import attack_simulator
+    from src.threat_map_engine import global_threat_map_engine
     _ENGINES_AVAILABLE = True
 except Exception:
     _ENGINES_AVAILABLE = False
@@ -138,6 +139,7 @@ except Exception:
     notification_engine = None
     benchmark_validator = None
     attack_simulator = None
+    global_threat_map_engine = None
 
 
 # CONFIG & PAGE SETUP
@@ -211,6 +213,7 @@ NAV_PAGES = [
     ("🌐", "Live Traffic"),
     ("📊", "Traffic Analytics"),
     ("🚨", "Threat Detection"),
+    ("🌍", "Global Threat Map"),
     ("⚔️", "Red vs Blue War-Room"),
     ("🛡️", "MITRE ATT&CK Matrix"),
     ("⚡", "Agentic SOC Copilot"),
@@ -4461,6 +4464,739 @@ def render_red_vs_blue_warroom():
                 mime="application/json",
                 key="dl_aar_json_btn",
             )
+
+
+# ============================================================================
+# 3D GLOBAL THREAT INTELLIGENCE & GEODESIC ATTACK MAP
+# ============================================================================
+
+def render_global_threat_map():
+    """
+    Renders the 3D Global Threat Intelligence & Geodesic Attack Map.
+    Features real-time planetary cyber defense radar, ballistic attack arcs,
+    origin nation rankings, and instant threat telemetry feed.
+    """
+    section_header(
+        "🌍 3D Global Threat Intelligence & Geodesic Cyber Map",
+        "Real-time planetary cyber defense radar tracking incoming ballistic cyber vectors, active botnets, and automated SOC perimeter interceptions.",
+    )
+
+    engine = global_threat_map_engine
+    if engine is None:
+        try:
+            from src.threat_map_engine import ThreatMapEngine
+            engine = ThreatMapEngine()
+        except Exception as exc:
+            state_banner("unavailable", "Threat Map Engine Unavailable", f"Cannot load 3D threat map engine: {exc}")
+            return
+
+    # Top Control Bar
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([1.4, 1.6, 1.1, 1.6])
+    with ctrl_col1:
+        sev_filter = st.selectbox(
+            "Filter by Severity",
+            ["All", "Critical", "High", "Medium", "Low"],
+            key="gtm_sev_filter",
+        )
+    with ctrl_col2:
+        view_mode = st.selectbox(
+            "Visualization Engine",
+            ["🌐 3D Holographic Globe (Three.js)", "🗺️ 2D Geospatial Radar (Plotly)"],
+            key="gtm_view_mode",
+        )
+    with ctrl_col3:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        auto_rotate = st.checkbox("Auto-Rotate", value=True, key="gtm_auto_rotate")
+    with ctrl_col4:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("🎯 Pulse Global Threat Stream", use_container_width=True, type="primary", key="gtm_pulse_btn"):
+            pulsed = engine.pulse_attack(count=random.randint(3, 5))
+            st.toast(f"⚡ Intercepted {len(pulsed)} new ballistic cyber vectors at Central SOC perimeter!", icon="🛡️")
+            st.rerun()
+
+    # Summary Metrics Row
+    summary = engine.get_summary_metrics()
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        metric_card(
+            "🛡️",
+            "Total Intercepted Vectors",
+            f"{summary['total_events']:,}",
+            value_class="cyber-metric-highlight",
+            delta=f"{summary['critical_events']} Critical Threats",
+        )
+    with m2:
+        metric_card(
+            "🎯",
+            "Perimeter Mitigation Rate",
+            f"{summary['mitigation_rate']}%",
+            delta="100% Shield Enforced",
+        )
+    with m3:
+        metric_card(
+            "⚡",
+            "Scrubbed Threat Volume",
+            f"{summary['total_bandwidth_gbps']} Gbps",
+            delta=f"{summary['unique_countries']} Origin Nations",
+        )
+    with m4:
+        metric_card(
+            "📡",
+            "Dominant Attack Vector",
+            summary["dominant_threat"].split("(")[0].strip()[:22],
+            delta="Active Botnet Sweep",
+        )
+
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
+    # Arcs and events
+    raw_arcs = engine.get_threat_arc_data(limit=40)
+    if sev_filter != "All":
+        raw_arcs = [a for a in raw_arcs if a["severity"].lower() == sev_filter.lower()]
+
+    soc_info = engine.soc_location
+
+    if view_mode == "🌐 3D Holographic Globe (Three.js)":
+        arcs_json_str = json.dumps(raw_arcs)
+        soc_json_str = json.dumps(soc_info)
+        auto_rot_str = "true" if auto_rotate else "false"
+
+        globe_html = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            html, body {{
+              width: 100%; height: 100%; overflow: hidden;
+              background: radial-gradient(circle at 50% 50%, #061127 0%, #020617 100%);
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              color: #f8fafc;
+            }}
+            #globe-container {{
+              position: relative; width: 100%; height: 640px; overflow: hidden;
+              border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.25);
+              box-shadow: inset 0 0 40px rgba(2, 6, 23, 0.8), 0 0 25px rgba(56, 189, 248, 0.1);
+            }}
+            #globe-canvas {{ width: 100%; height: 100%; display: block; }}
+            .hud-bar {{
+              position: absolute; z-index: 10;
+              background: rgba(15, 23, 42, 0.75);
+              backdrop-filter: blur(8px);
+              -webkit-backdrop-filter: blur(8px);
+              border: 1px solid rgba(56, 189, 248, 0.2);
+              border-radius: 6px; padding: 7px 12px;
+              font-size: 11px; letter-spacing: 0.05em;
+              display: flex; align-items: center; gap: 10px;
+            }}
+            .hud-top-left {{ top: 12px; left: 14px; color: #38bdf8; font-weight: 700; }}
+            .hud-top-right {{ top: 12px; right: 14px; color: #94a3b8; }}
+            .hud-bottom-bar {{
+              bottom: 12px; left: 14px; right: 14px;
+              justify-content: space-between; font-size: 10px; color: #64748b;
+            }}
+            .hud-badge {{
+              padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 10px;
+              background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35);
+            }}
+            .hud-legend {{
+              display: flex; gap: 8px; align-items: center;
+            }}
+            .leg-dot {{ width: 8px; height: 8px; border-radius: 50%; display: inline-block; }}
+            #globe-tooltip {{
+              position: absolute; display: none; z-index: 20;
+              background: rgba(15, 23, 42, 0.94);
+              border: 1px solid #38bdf8; border-radius: 8px;
+              padding: 10px 14px; pointer-events: none;
+              font-size: 11px; line-height: 1.5; color: #f8fafc;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+              transform: translate(-50%, -120%);
+              min-width: 220px;
+            }}
+            .tt-title {{ color: #38bdf8; font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 2px; }}
+            .tt-row {{ display: flex; justify-content: space-between; gap: 12px; margin-top: 2px; }}
+            .tt-label {{ color: #94a3b8; }}
+            .tt-val {{ color: #f8fafc; font-weight: 600; text-align: right; }}
+          </style>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        </head>
+        <body>
+          <div id="globe-container">
+            <canvas id="globe-canvas"></canvas>
+
+            <div class="hud-bar hud-top-left">
+              <span style="color:#ef4444; font-size:13px; animation: pulse 1.5s infinite;">●</span>
+              <span>NETGUARD AI // PLANETARY DEFENSE RADAR</span>
+              <span class="hud-badge">{len(raw_arcs)} ACTIVE ARCS</span>
+            </div>
+
+            <div class="hud-bar hud-top-right">
+              <span style="color:#10b981;">🛡️ SOC HQ: {soc_info['city']} [{soc_info['lat']}°N, {abs(soc_info['lon'])}°W]</span>
+            </div>
+
+            <div class="hud-bar hud-bottom-bar">
+              <div class="hud-legend">
+                <span>SEVERITY:</span>
+                <span><span class="leg-dot" style="background:#ef4444;"></span> Critical</span>
+                <span><span class="leg-dot" style="background:#f97316;"></span> High</span>
+                <span><span class="leg-dot" style="background:#eab308;"></span> Medium</span>
+                <span><span class="leg-dot" style="background:#10b981;"></span> Low</span>
+              </div>
+              <div style="opacity: 0.85;">LEFT-CLICK DRAG: ORBIT • SCROLL: ZOOM • HOVER NODE: INTEL</div>
+            </div>
+
+            <div id="globe-tooltip">
+              <div class="tt-title" id="tt-loc">Origin City</div>
+              <div class="tt-row"><span class="tt-label">Attack Vector:</span><span class="tt-val" id="tt-type">DDoS</span></div>
+              <div class="tt-row"><span class="tt-label">Severity:</span><span class="tt-val" id="tt-sev">Critical</span></div>
+              <div class="tt-row"><span class="tt-label">Bandwidth:</span><span class="tt-val" id="tt-bw">450 Mbps</span></div>
+              <div class="tt-row"><span class="tt-label">Target:</span><span class="tt-val" id="tt-dst">{soc_info['city']} Defense HQ</span></div>
+              <div class="tt-row"><span class="tt-label">Defense:</span><span class="tt-val" style="color:#10b981;" id="tt-st">🛡️ BLOCKED</span></div>
+            </div>
+          </div>
+
+          <script>
+            (function() {{
+              const rawArcs = {arcs_json_str};
+              const soc = {soc_json_str};
+              const defaultAutoRotate = {auto_rot_str};
+
+              const container = document.getElementById('globe-container');
+              const canvas = document.getElementById('globe-canvas');
+              const tooltip = document.getElementById('globe-tooltip');
+
+              let renderer, scene, camera;
+              let globeGroup, starsGroup;
+              let activeMissiles = [];
+              let originPins = [];
+              let impactRings = [];
+
+              let autoRotate = defaultAutoRotate;
+              let rotX = 0.35, rotY = -1.2;
+              let targetRotX = 0.35, targetRotY = -1.2;
+              let isDragging = false;
+              let prevX = 0, prevY = 0;
+              let zoomDist = 240;
+
+              const GLOBE_RADIUS = 88;
+
+              function latLongToVector3(lat, lon, radius, alt) {{
+                alt = alt || 0;
+                const phi = (90 - lat) * (Math.PI / 180);
+                const theta = (lon + 180) * (Math.PI / 180);
+                const r = radius + alt;
+                const x = -(r * Math.sin(phi) * Math.cos(theta));
+                const z = (r * Math.sin(phi) * Math.sin(theta));
+                const y = (r * Math.cos(phi));
+                return new THREE.Vector3(x, y, z);
+              }}
+
+              function init() {{
+                const width = container.clientWidth || window.innerWidth;
+                const height = container.clientHeight || 640;
+
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(45, width / height, 1, 2000);
+                camera.position.set(0, 0, zoomDist);
+
+                renderer = new THREE.WebGLRenderer({{
+                  canvas: canvas,
+                  antialias: true,
+                  alpha: true,
+                  powerPreference: "high-performance"
+                }});
+                renderer.setSize(width, height);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+                const ambLight = new THREE.AmbientLight(0xffffff, 0.85);
+                scene.add(ambLight);
+
+                const dirLight1 = new THREE.DirectionalLight(0x38bdf8, 1.8);
+                dirLight1.position.set(200, 150, 150);
+                scene.add(dirLight1);
+
+                const dirLight2 = new THREE.DirectionalLight(0xa855f7, 1.4);
+                dirLight2.position.set(-200, -150, -100);
+                scene.add(dirLight2);
+
+                // Starfield Background
+                starsGroup = new THREE.Group();
+                const starGeo = new THREE.BufferGeometry();
+                const starPos = new Float32Array(400 * 3);
+                for (let i = 0; i < 400 * 3; i += 3) {{
+                  starPos[i] = (Math.random() - 0.5) * 1000;
+                  starPos[i+1] = (Math.random() - 0.5) * 700;
+                  starPos[i+2] = (Math.random() - 0.5) * 800;
+                }}
+                starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+                const starMat = new THREE.PointsMaterial({{ color: 0x38bdf8, size: 1.4, transparent: true, opacity: 0.4 }});
+                starsGroup.add(new THREE.Points(starGeo, starMat));
+                scene.add(starsGroup);
+
+                globeGroup = new THREE.Group();
+                scene.add(globeGroup);
+
+                buildCyberGlobe();
+                buildSocDefenseHQ();
+                buildAttackArcs();
+
+                window.addEventListener('resize', onResize);
+                canvas.addEventListener('mousedown', onMouseDown);
+                window.addEventListener('mouseup', onMouseUp);
+                window.addEventListener('mousemove', onMouseMove);
+                canvas.addEventListener('wheel', onWheel, {{ passive: false }});
+                canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+                animate();
+              }}
+
+              function buildCyberGlobe() {{
+                // 1. Dark Core Sphere
+                const coreGeo = new THREE.SphereGeometry(GLOBE_RADIUS - 0.5, 48, 48);
+                const coreMat = new THREE.MeshBasicMaterial({{
+                  color: 0x071126,
+                  transparent: true,
+                  opacity: 0.92
+                }});
+                globeGroup.add(new THREE.Mesh(coreGeo, coreMat));
+
+                // 2. Wireframe Matrix Sphere
+                const wireGeo = new THREE.SphereGeometry(GLOBE_RADIUS, 36, 36);
+                const wireMat = new THREE.MeshBasicMaterial({{
+                  color: 0x1e3a8a,
+                  wireframe: true,
+                  transparent: true,
+                  opacity: 0.28
+                }});
+                globeGroup.add(new THREE.Mesh(wireGeo, wireMat));
+
+                // 3. Atmosphere Halo Glow Shell
+                const haloGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.06, 32, 32);
+                const haloMat = new THREE.MeshBasicMaterial({{
+                  color: 0x0284c7,
+                  transparent: true,
+                  opacity: 0.12,
+                  side: THREE.BackSide
+                }});
+                globeGroup.add(new THREE.Mesh(haloGeo, haloMat));
+
+                // 4. Continent Point Cloud (Luminous Geo Matrix)
+                const continentBoxes = [
+                  {{ minLat: 15, maxLat: 68, minLon: -160, maxLon: -55, count: 280 }},  // North America
+                  {{ minLat: -55, maxLat: 12, minLon: -80, maxLon: -35, count: 180 }},   // South America
+                  {{ minLat: 36, maxLat: 68, minLon: -10, maxLon: 35, count: 240 }},     // Europe
+                  {{ minLat: -35, maxLat: 36, minLon: -18, maxLon: 50, count: 280 }},    // Africa
+                  {{ minLat: 5, maxLat: 72, minLon: 40, maxLon: 145, count: 480 }},     // Asia
+                  {{ minLat: -42, maxLat: -10, minLon: 112, maxLon: 154, count: 140 }}, // Australia
+                  {{ minLat: 30, maxLat: 45, minLon: 130, maxLon: 145, count: 70 }}     // Japan
+                ];
+
+                const landGeo = new THREE.BufferGeometry();
+                const totalPoints = continentBoxes.reduce((acc, b) => acc + b.count, 0);
+                const landPos = new Float32Array(totalPoints * 3);
+                let pIdx = 0;
+
+                continentBoxes.forEach(b => {{
+                  for (let i = 0; i < b.count; i++) {{
+                    const lat = b.minLat + Math.random() * (b.maxLat - b.minLat);
+                    const lon = b.minLon + Math.random() * (b.maxLon - b.minLon);
+                    const v = latLongToVector3(lat, lon, GLOBE_RADIUS + 0.3);
+                    landPos[pIdx++] = v.x;
+                    landPos[pIdx++] = v.y;
+                    landPos[pIdx++] = v.z;
+                  }}
+                }});
+
+                landGeo.setAttribute('position', new THREE.BufferAttribute(landPos, 3));
+                const landMat = new THREE.PointsMaterial({{
+                  color: 0x38bdf8,
+                  size: 1.8,
+                  transparent: true,
+                  opacity: 0.72
+                }});
+                globeGroup.add(new THREE.Points(landGeo, landMat));
+
+                // 5. Graticule Equator and Meridian Rings
+                const equatorGeo = new THREE.BufferGeometry();
+                const eqPts = [];
+                for (let a = 0; a <= 360; a += 5) {{
+                  eqPts.push(latLongToVector3(0, a, GLOBE_RADIUS + 0.2));
+                }}
+                equatorGeo.setFromPoints(eqPts);
+                const eqMat = new THREE.LineBasicMaterial({{ color: 0x0ea5e9, transparent: true, opacity: 0.3 }});
+                globeGroup.add(new THREE.Line(equatorGeo, eqMat));
+              }}
+
+              function buildSocDefenseHQ() {{
+                const socVec = latLongToVector3(soc.lat, soc.lon, GLOBE_RADIUS);
+
+                // Central Beacon Tower
+                const pillarGeo = new THREE.CylinderGeometry(0.9, 0.9, 14, 8);
+                const pillarMat = new THREE.MeshBasicMaterial({{ color: 0x10b981 }});
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.copy(socVec.clone().multiplyScalar(1.06));
+                pillar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), socVec.clone().normalize());
+                globeGroup.add(pillar);
+
+                // Glowing Pin Head
+                const pinHeadGeo = new THREE.SphereGeometry(2.4, 12, 12);
+                const pinHeadMat = new THREE.MeshBasicMaterial({{ color: 0x34d399 }});
+                const pinHead = new THREE.Mesh(pinHeadGeo, pinHeadMat);
+                pinHead.position.copy(socVec.clone().multiplyScalar(1.12));
+                globeGroup.add(pinHead);
+
+                // Pulsing Shield Radar Wave Rings
+                for (let r = 0; r < 3; r++) {{
+                  const ringGeo = new THREE.RingGeometry(2.5, 3.8, 24);
+                  const ringMat = new THREE.MeshBasicMaterial({{
+                    color: 0x10b981,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.6
+                  }});
+                  const ring = new THREE.Mesh(ringGeo, ringMat);
+                  ring.position.copy(socVec.clone().multiplyScalar(1.01));
+                  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), socVec.clone().normalize());
+                  ring.userData = {{ phase: r * 0.33 }};
+                  globeGroup.add(ring);
+                  impactRings.push(ring);
+                }}
+              }}
+
+              function buildAttackArcs() {{
+                activeMissiles = [];
+                originPins = [];
+
+                const vDst = latLongToVector3(soc.lat, soc.lon, GLOBE_RADIUS);
+
+                rawArcs.forEach((arc, idx) => {{
+                  const vSrc = latLongToVector3(arc.src_lat, arc.src_lon, GLOBE_RADIUS);
+                  const dist = vSrc.distanceTo(vDst);
+
+                  // Dynamic Ballistic Trajectory Curve
+                  const altitude = Math.min(55, Math.max(22, dist * 0.34));
+                  const vMid = vSrc.clone().add(vDst).multiplyScalar(0.5);
+                  vMid.normalize().multiplyScalar(GLOBE_RADIUS + altitude);
+
+                  const curve = new THREE.QuadraticBezierCurve3(vSrc, vMid, vDst);
+                  const points = curve.getPoints(45);
+                  const arcGeo = new THREE.BufferGeometry().setFromPoints(points);
+
+                  const colVal = parseInt(arc.color.replace('#', '0x'), 16);
+
+                  const arcMat = new THREE.LineBasicMaterial({{
+                    color: colVal,
+                    transparent: true,
+                    opacity: 0.55,
+                    linewidth: 1.5
+                  }});
+                  const arcLine = new THREE.Line(arcGeo, arcMat);
+                  globeGroup.add(arcLine);
+
+                  // Animated Cyber Missile Tracer Particle
+                  const mGeo = new THREE.SphereGeometry(1.5, 8, 8);
+                  const mMat = new THREE.MeshBasicMaterial({{ color: colVal }});
+                  const missile = new THREE.Mesh(mGeo, mMat);
+                  missile.userData = {{
+                    curve: curve,
+                    progress: (idx * 0.12) % 1.0,
+                    speed: 0.0035 + (idx % 4) * 0.0012,
+                    arcData: arc
+                  }};
+                  globeGroup.add(missile);
+                  activeMissiles.push(missile);
+
+                  // Origin Hotspot Pin
+                  const pGeo = new THREE.SphereGeometry(2.0, 10, 10);
+                  const pMat = new THREE.MeshBasicMaterial({{ color: colVal }});
+                  const pinMesh = new THREE.Mesh(pGeo, pMat);
+                  pinMesh.position.copy(vSrc.clone().multiplyScalar(1.02));
+                  pinMesh.userData = {{ arcData: arc }};
+                  globeGroup.add(pinMesh);
+                  originPins.push(pinMesh);
+                }});
+              }}
+
+              const raycaster = new THREE.Raycaster();
+              const mouse = new THREE.Vector2(-1000, -1000);
+              let hoveredPin = null;
+
+              function onMouseDown(e) {{
+                if (e.button === 0) {{
+                  isDragging = true;
+                  autoRotate = false;
+                }}
+                prevX = e.clientX;
+                prevY = e.clientY;
+              }}
+
+              function onMouseUp() {{
+                isDragging = false;
+                if (defaultAutoRotate) {{
+                  setTimeout(() => {{ if (!isDragging) autoRotate = true; }}, 3500);
+                }}
+              }}
+
+              function onMouseMove(e) {{
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+                if (isDragging) {{
+                  const dx = e.clientX - prevX;
+                  const dy = e.clientY - prevY;
+                  targetRotY += dx * 0.008;
+                  targetRotX += dy * 0.008;
+                  targetRotX = Math.max(-1.4, Math.min(1.4, targetRotX));
+                  prevX = e.clientX;
+                  prevY = e.clientY;
+                }}
+              }}
+
+              function onWheel(e) {{
+                e.preventDefault();
+                zoomDist += e.deltaY * 0.28;
+                zoomDist = Math.max(140, Math.min(420, zoomDist));
+                camera.position.z = zoomDist;
+              }}
+
+              function onResize() {{
+                const width = container.clientWidth || window.innerWidth;
+                const height = container.clientHeight || 640;
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+                renderer.setSize(width, height);
+              }}
+
+              let clock = 0;
+
+              function animate() {{
+                requestAnimationFrame(animate);
+                clock += 0.016;
+
+                // Auto Rotation & Smooth Damping
+                if (autoRotate && !isDragging) {{
+                  targetRotY += 0.0016;
+                }}
+                rotX += (targetRotX - rotX) * 0.08;
+                rotY += (targetRotY - rotY) * 0.08;
+                globeGroup.rotation.x = rotX;
+                globeGroup.rotation.y = rotY;
+
+                starsGroup.rotation.y += 0.0003;
+
+                // Animate Missiles Along Ballistic Curves
+                activeMissiles.forEach(m => {{
+                  m.userData.progress += m.userData.speed;
+                  if (m.userData.progress >= 1.0) {{
+                    m.userData.progress = 0.0;
+                  }}
+                  m.position.copy(m.userData.curve.getPoint(m.userData.progress));
+                }});
+
+                // Animate Pulsing Radar Shield Waves at SOC
+                impactRings.forEach(ring => {{
+                  ring.userData.phase += 0.015;
+                  if (ring.userData.phase > 1.0) ring.userData.phase = 0.0;
+                  const s = 1.0 + ring.userData.phase * 3.2;
+                  ring.scale.set(s, s, s);
+                  ring.material.opacity = Math.max(0, 0.7 - ring.userData.phase * 0.7);
+                }});
+
+                // Interactive Raycasting for Intel Tooltip
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(originPins);
+                if (intersects.length > 0) {{
+                  hoveredPin = intersects[0].object;
+                  const arc = hoveredPin.userData.arcData;
+
+                  const tempV = new THREE.Vector3();
+                  hoveredPin.getWorldPosition(tempV);
+                  tempV.project(camera);
+
+                  const hw = container.clientWidth / 2;
+                  const hh = container.clientHeight / 2;
+                  const x = (tempV.x * hw) + hw;
+                  const y = -(tempV.y * hh) + hh;
+
+                  tooltip.style.display = 'block';
+                  tooltip.style.left = x + 'px';
+                  tooltip.style.top = y + 'px';
+
+                  document.getElementById('tt-loc').textContent = `🚨 ${{arc.src_city}}, ${{arc.src_country}}`;
+                  document.getElementById('tt-type').textContent = arc.attack_type;
+                  document.getElementById('tt-sev').textContent = arc.severity;
+                  document.getElementById('tt-bw').textContent = `${{arc.bandwidth_mbps}} Mbps`;
+                  document.getElementById('tt-st').textContent = `🛡️ ${{arc.status}}`;
+                }} else {{
+                  hoveredPin = null;
+                  tooltip.style.display = 'none';
+                }}
+
+                renderer.render(scene, camera);
+              }}
+
+              init();
+            }})();
+          </script>
+        </body>
+        </html>
+        """
+        components.html(globe_html, height=660, scrolling=False)
+
+    else:
+        # 2D Geospatial Radar Map (Plotly fallback)
+        st.markdown("##### 🗺️ High-Resolution Geospatial Radar Projection")
+        if raw_arcs:
+            df_arcs = pd.DataFrame(raw_arcs)
+            
+            fig = go.Figure()
+
+            # Flight arcs connecting origin to SOC
+            for _, arc in df_arcs.iterrows():
+                fig.add_trace(
+                    go.Scattergeo(
+                        lon=[arc["src_lon"], soc_info["lon"]],
+                        lat=[arc["src_lat"], soc_info["lat"]],
+                        mode="lines",
+                        line=dict(width=2, color=arc["color"]),
+                        opacity=0.65,
+                        hoverinfo="none",
+                        showlegend=False,
+                    )
+                )
+
+            # Attack Origin Nodes
+            fig.add_trace(
+                go.Scattergeo(
+                    lon=df_arcs["src_lon"],
+                    lat=df_arcs["src_lat"],
+                    text=df_arcs["src_city"] + " (" + df_arcs["src_country"] + ")<br>Vector: " + df_arcs["attack_type"] + "<br>Severity: " + df_arcs["severity"],
+                    hoverinfo="text",
+                    mode="markers",
+                    marker=dict(
+                        size=9,
+                        color=df_arcs["color"],
+                        line=dict(width=1, color="#ffffff"),
+                    ),
+                    name="Attack Origin Vector",
+                )
+            )
+
+            # Central SOC HQ Target Beacon
+            fig.add_trace(
+                go.Scattergeo(
+                    lon=[soc_info["lon"]],
+                    lat=[soc_info["lat"]],
+                    text=[f"🎯 Central SOC: {soc_info['name']} ({soc_info['city']})"],
+                    hoverinfo="text",
+                    mode="markers",
+                    marker=dict(size=14, color="#10b981", symbol="star", line=dict(width=2, color="#ffffff")),
+                    name="NetGuard SOC Perimeter",
+                )
+            )
+
+            fig.update_layout(
+                geo=dict(
+                    projection_type="natural earth",
+                    showland=True,
+                    landcolor="#0f172a",
+                    showocean=True,
+                    oceancolor="#020617",
+                    showcountries=True,
+                    countrycolor="#1e293b",
+                    showcoastlines=True,
+                    coastlinecolor="#334155",
+                    bgcolor="rgba(2, 6, 23, 0.95)",
+                ),
+                margin=dict(l=0, r=0, t=20, b=0),
+                height=550,
+                paper_bgcolor="rgba(0,0,0,0)",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            state_banner("info", "No Active Geodesic Arcs", "No threat arcs match the selected severity filter.")
+
+    st.divider()
+
+    # Bottom Intel Row: Leaderboards & Live Stream
+    col_lead, col_feed = st.columns([1, 1.45])
+
+    with col_lead:
+        st.markdown("##### 🏆 Top Threat Origin Nations")
+        st.caption("Ranked by cumulative attack frequency and critical zero-day intrusion attempts.")
+
+        top_countries = engine.get_top_origin_countries(limit=7)
+        max_attacks = max((c["total_attacks"] for c in top_countries), default=1)
+
+        for rank, c in enumerate(top_countries, 1):
+            pct = min(100, int((c["total_attacks"] / max_attacks) * 100))
+            crit_badge = f"<span class='badge badge-critical'>{c['critical_attacks']} Critical</span>" if c["critical_attacks"] > 0 else ""
+            st.markdown(
+                f"""
+                <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="font-weight: 700; font-size: 13px; color: #f8fafc;">
+                            <span style="color: #38bdf8; margin-right: 6px;">#{rank}</span>
+                            {c['country']} <span style="font-size: 10px; color: #64748b; font-family: var(--font-mono);">[{c['code']}]</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            {crit_badge}
+                            <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #f8fafc;">{c['total_attacks']} Hits</span>
+                        </div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.8); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: {pct}%; height: 100%; background: linear-gradient(90deg, #38bdf8, #ef4444); border-radius: 3px;"></div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with col_feed:
+        st.markdown("##### ⚡ Live Intercepted Geodesic Threat Feed")
+        st.caption("Chronological stream of incoming malicious traffic vectors scrubbed at perimeter firewall.")
+
+        recent_threats = engine.get_recent_events(limit=30, severity_filter=sev_filter)
+        if recent_threats:
+            feed_records = []
+            for ev in recent_threats:
+                feed_records.append({
+                    "Time": ev["timestamp"],
+                    "Event ID": ev["event_id"],
+                    "Origin": f"{ev['src_city']}, {ev['src_country_code']}",
+                    "Vector": ev["attack_type"],
+                    "Severity": ev["severity"],
+                    "Bandwidth": f"{ev['bandwidth_mbps']} Mbps",
+                    "Status": f"🛡️ {ev['status']}",
+                })
+            df_feed = pd.DataFrame(feed_records)
+            st.dataframe(df_feed, use_container_width=True, height=330, hide_index=True)
+
+            # Export Telemetry Feed
+            dl_col1, dl_col2 = st.columns(2)
+            with dl_col1:
+                st.download_button(
+                    "📥 Export Threat Feed (CSV)",
+                    data=df_feed.to_csv(index=False),
+                    file_name=f"netguard_threat_feed_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="gtm_dl_csv",
+                )
+            with dl_col2:
+                st.download_button(
+                    "📥 Export Threat Telemetry (JSON)",
+                    data=json.dumps(recent_threats, indent=2),
+                    file_name=f"netguard_threat_intel_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="gtm_dl_json",
+                )
+        else:
+            state_banner("info", "No Telemetry Events", "No threat telemetry recorded matching the selected filter.")
 
 
 # ============================================================================
@@ -8736,6 +9472,7 @@ PAGES = {
     "Live Traffic": render_analyze_traffic,
     "Traffic Analytics": render_traffic_analytics,
     "Threat Detection": render_threat_detection,
+    "Global Threat Map": render_global_threat_map,
     "Red vs Blue War-Room": render_red_vs_blue_warroom,
     "MITRE ATT&CK Matrix": render_mitre_matrix,
     "Agentic SOC Copilot": render_agentic_soc_copilot,

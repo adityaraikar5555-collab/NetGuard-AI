@@ -8,7 +8,7 @@
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit)
 ![Scikit-Learn](https://img.shields.io/badge/ML-Scikit--Learn-orange?logo=scikitlearn)
 ![RandomForest](https://img.shields.io/badge/Algorithm-Random%20Forest-green)
-![Tests](https://img.shields.io/badge/Tests-61%20Passed-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-82%20Passed-brightgreen)
 ![Live Traffic](https://img.shields.io/badge/Live%20Traffic-Scapy%20%2B%20DPI-informational)
 ![Groq](https://img.shields.io/badge/ReAct%20Speed-Groq%20Ultra--Fast-f55036)
 ![Docs](https://img.shields.io/badge/Specification-PDF%20Included-red?logo=adobeacrobatreader)
@@ -93,7 +93,14 @@ NetGuard AI achieves **99.9% accuracy** and sub-5ms inference latency. Beyond pa
 - **Cryptographic Case Packager (ISO/IEC 27037 Compliant)**
   - 1-click forensic dossier exporter bundling SHA-256 sealed manifest, executive HTML report, Linux/Windows containment scripts, Snort/Suricata IDS rules, STIX 2.1 JSON, and raw telemetry CSV.
 
-- **Rich Streamlit SOC Dashboard with 16 Pages**
+- **Red vs Blue Interactive Cyber War-Room & Attack Simulator**
+  - Live adversarial war-game simulation executing 10 multi-stage cyber attack campaigns (DDoS Amplification, Mirai Botnet, Cobalt Strike C2, SQLi, Ransomware Lateral Movement). Features automated SOAR blue-team containment, single-click host quarantine/unquarantine, and downloadable After-Action Reports (AAR).
+
+- **3D Global Threat Intelligence & Geodesic Attack Map**
+  - High-performance WebGL/Three.js interactive 3D holographic Earth globe displaying real-time ballistic cyber threat trajectories from global origin nodes (Frankfurt, Beijing, Moscow, London, São Paulo, Tokyo, Sydney) to Central SOC Defense HQ.
+  - Animated cyber missile particles, expanding perimeter radar pulses, top threat origin nations leaderboard, and streaming telemetry feed.
+
+- **Rich Streamlit SOC Dashboard with 18 Pages**
   - Dark cyber / light enterprise theme, glassmorphism, 3D WebGL neural topology visualizer, live activity feed, and dedicated settings for API latency diagnostics.
 
 ---

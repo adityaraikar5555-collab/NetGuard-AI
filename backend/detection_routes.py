@@ -12,6 +12,7 @@ Endpoints:
 """
 
 import asyncio
+from dataclasses import asdict
 from datetime import datetime, timezone
 import json
 from typing import Any, Dict, List, Optional
@@ -30,6 +31,14 @@ except Exception:
         from src.attack_simulator import attack_simulator
     except Exception:
         attack_simulator = None
+
+try:
+    from threat_map_engine import global_threat_map_engine
+except Exception:
+    try:
+        from src.threat_map_engine import global_threat_map_engine
+    except Exception:
+        global_threat_map_engine = None
 
 router = APIRouter(tags=["Real-Time Detection & WebSocket Stream"])
 
@@ -313,3 +322,52 @@ def release_quarantined_host(req: ReleaseQuarantineRequest):
         "released": released,
         "ip": req.ip,
     }
+
+
+# ==============================================================================
+# GLOBAL 3D THREAT INTELLIGENCE MAP TELEMETRY
+# ==============================================================================
+
+class ThreatPulseRequest(BaseModel):
+    count: int = Field(default=3, ge=1, le=25)
+
+
+@router.get("/threat-map/telemetry")
+def get_threat_map_telemetry(
+    limit_arcs: int = Query(default=30, ge=5, le=100),
+    limit_events: int = Query(default=50, ge=5, le=200),
+    severity: Optional[str] = Query(default=None),
+):
+    """
+    Returns spatial threat coordinates, active cyber attack arcs, top threat origins,
+    and rolling telemetry feed for the 3D Global Threat Intelligence visualization.
+    """
+    if global_threat_map_engine is None:
+        raise HTTPException(status_code=503, detail="Global Threat Map engine not loaded.")
+
+    return {
+        "status": "success",
+        "summary": global_threat_map_engine.get_summary_metrics(),
+        "top_countries": global_threat_map_engine.get_top_origin_countries(limit=6),
+        "arcs": global_threat_map_engine.get_threat_arc_data(limit=limit_arcs),
+        "recent_events": global_threat_map_engine.get_recent_events(limit=limit_events, severity_filter=severity),
+        "soc_hq": global_threat_map_engine.soc_location,
+    }
+
+
+@router.post("/threat-map/pulse")
+def pulse_global_threats(req: ThreatPulseRequest):
+    """
+    Simulates a burst of real-time incoming cyber attack vectors from global endpoints.
+    """
+    if global_threat_map_engine is None:
+        raise HTTPException(status_code=503, detail="Global Threat Map engine not loaded.")
+
+    pulsed = global_threat_map_engine.pulse_attack(count=req.count)
+    return {
+        "status": "success",
+        "pulsed_count": len(pulsed),
+        "events": [asdict(e) if hasattr(e, "__dataclass_fields__") else e for e in pulsed],
+        "summary": global_threat_map_engine.get_summary_metrics(),
+    }
+
