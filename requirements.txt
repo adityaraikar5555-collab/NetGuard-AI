@@ -14,4 +14,5 @@ pyjwt>=2.8.0
 bcrypt>=4.0.0
 scapy>=2.8.0
 reportlab>=4.0.0
+torch>=2.0.0
 

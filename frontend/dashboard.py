@@ -110,10 +110,6 @@ try:
     from src.live_monitor import live_monitor, CICIDS_78_FEATURE_NAMES
     from src.realtime_detector import realtime_detector
     from src.notification_engine import notification_engine
-    from src.benchmark_validator import benchmark_validator
-    from src.attack_simulator import attack_simulator
-    from src.threat_map_engine import global_threat_map_engine
-    from src.zero_day_engine import zero_day_engine
     _ENGINES_AVAILABLE = True
 except Exception:
     _ENGINES_AVAILABLE = False
@@ -138,10 +134,39 @@ except Exception:
     CICIDS_78_FEATURE_NAMES = []
     realtime_detector = None
     notification_engine = None
-    benchmark_validator = None
-    attack_simulator = None
-    global_threat_map_engine = None
-    zero_day_engine = None
+
+# Isolated resilient sub-engine loaders
+try:
+    from src.benchmark_validator import benchmark_validator
+except Exception:
+    try:
+        from benchmark_validator import benchmark_validator
+    except Exception:
+        benchmark_validator = None
+
+try:
+    from src.attack_simulator import attack_simulator
+except Exception:
+    try:
+        from attack_simulator import attack_simulator
+    except Exception:
+        attack_simulator = None
+
+try:
+    from src.threat_map_engine import global_threat_map_engine
+except Exception:
+    try:
+        from threat_map_engine import global_threat_map_engine
+    except Exception:
+        global_threat_map_engine = None
+
+try:
+    from src.zero_day_engine import zero_day_engine
+except Exception:
+    try:
+        from zero_day_engine import zero_day_engine
+    except Exception:
+        zero_day_engine = None
 
 
 # CONFIG & PAGE SETUP
@@ -4048,6 +4073,18 @@ def render_red_vs_blue_warroom():
         "Interactive Live Adversarial Warfare: 1-Click Offensive Threat Emulation vs Sub-Millisecond Autonomous SOC Defense.",
     )
 
+    global attack_simulator
+    if attack_simulator is None:
+        try:
+            from src.attack_simulator import attack_simulator as _sim
+            attack_simulator = _sim
+        except Exception:
+            try:
+                from attack_simulator import attack_simulator as _sim
+                attack_simulator = _sim
+            except Exception:
+                pass
+
     if attack_simulator is None:
         state_banner("unavailable", "Attack Simulator Engine Unavailable", "The attack simulator engine module is initializing or missing from src/attack_simulator.py.")
         return
@@ -5217,14 +5254,26 @@ def render_zero_day_engine():
         "Deep neural reconstruction network trained exclusively on legitimate benign traffic manifolds. Catastrophic reconstruction residual spikes pinpoint novel zero-day exploits and stealth evasions that bypass traditional supervised classifiers.",
     )
 
+    global zero_day_engine
     engine = zero_day_engine
     if engine is None or not getattr(engine, "is_loaded", False):
         try:
-            from src.zero_day_engine import ZeroDayEngine
-            engine = ZeroDayEngine()
-        except Exception as exc:
-            state_banner("unavailable", "Autoencoder Engine Unavailable", f"Cannot load PyTorch Autoencoder: {exc}")
-            return
+            from src.zero_day_engine import zero_day_engine as _zde
+            engine = _zde
+            zero_day_engine = _zde
+        except Exception:
+            try:
+                from zero_day_engine import zero_day_engine as _zde
+                engine = _zde
+                zero_day_engine = _zde
+            except Exception:
+                try:
+                    from src.zero_day_engine import ZeroDayEngine
+                    engine = ZeroDayEngine()
+                    zero_day_engine = engine
+                except Exception as exc:
+                    state_banner("unavailable", "Autoencoder Engine Unavailable", f"Cannot load Autoencoder Engine: {exc}")
+                    return
 
     # Top Metric Cards
     c1, c2, c3, c4 = st.columns(4)
@@ -5251,11 +5300,13 @@ def render_zero_day_engine():
             delta="95th Pct Benign Baseline",
         )
     with c4:
+        backend_name = "PyTorch Deep Net" if getattr(engine, "backend", "") == "pytorch" else "NumPy Matrix Core"
+        backend_delta = "GPU/CPU Tensor Acceleration" if getattr(engine, "backend", "") == "pytorch" else "Zero-Dependency Matrix Engine"
         metric_card(
             "⚡",
-            "Inference Framework",
-            "PyTorch Deep Net",
-            delta="Sub-1ms Tensor Reconstruction",
+            "Inference Engine",
+            backend_name,
+            delta=backend_delta,
         )
 
     st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
