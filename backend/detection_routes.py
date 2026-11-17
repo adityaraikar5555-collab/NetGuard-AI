@@ -23,6 +23,14 @@ import database
 from realtime_detector import realtime_detector
 from live_monitor import live_monitor
 
+try:
+    from attack_simulator import attack_simulator
+except Exception:
+    try:
+        from src.attack_simulator import attack_simulator
+    except Exception:
+        attack_simulator = None
+
 router = APIRouter(tags=["Real-Time Detection & WebSocket Stream"])
 
 
@@ -221,3 +229,87 @@ def simulate_detection_event(req: SimulateEventRequest):
     )
     event = realtime_detector.evaluate_flow(sim_flow)
     return {"success": True, "event": event}
+
+
+# ==============================================================================
+# RED VS BLUE CYBER ATTACK SIMULATOR & WAR-ROOM ENDPOINTS
+# ==============================================================================
+
+class LaunchAttackRequest(BaseModel):
+    attack_type: str = Field("SYN_FLOOD", description="Attack profile key from arsenal")
+    intensity: float = Field(1.0, ge=0.1, le=5.0, description="Offensive packet cadence multiplier")
+    duration_sec: int = Field(3, ge=1, le=30, description="Duration of simulated attack campaign")
+    attacker_ip: Optional[str] = Field(None, description="Spoofed or dedicated attacker source IP")
+    target_ip: str = Field("192.168.1.100", description="Victim / SOC perimeter destination IP")
+    target_port: Optional[int] = Field(None, description="Target destination network port")
+    emit_live_probe: bool = Field(True, description="Whether to emit local loopback test socket frames")
+
+
+class ReleaseQuarantineRequest(BaseModel):
+    ip: str = Field(..., description="IP address to release from active quarantine")
+
+
+@router.get("/simulator/arsenal")
+def get_attack_arsenal():
+    """
+    Returns registered offensive attack profiles and MITRE ATT&CK techniques.
+    """
+    if attack_simulator is None:
+        raise HTTPException(status_code=503, detail="Attack simulator engine not loaded.")
+    return {
+        "status": "success",
+        "arsenal": attack_simulator.get_arsenal_list(),
+    }
+
+
+@router.post("/simulator/launch")
+def launch_attack_campaign(req: LaunchAttackRequest):
+    """
+    Executes a Red vs Blue attack campaign:
+    Synthesizes attack vector, runs ML inference & XAI attribution,
+    generates automated SOAR containment, and isolates the host.
+    """
+    if attack_simulator is None:
+        raise HTTPException(status_code=503, detail="Attack simulator engine not loaded.")
+
+    battle_report = attack_simulator.run_war_game(
+        attack_type=req.attack_type,
+        intensity=req.intensity,
+        duration_sec=req.duration_sec,
+        attacker_ip=req.attacker_ip,
+        target_ip=req.target_ip,
+        target_port=req.target_port,
+        emit_live_probe=req.emit_live_probe,
+    )
+    return {
+        "status": "success",
+        "battle_report": battle_report,
+    }
+
+
+@router.get("/simulator/quarantine")
+def list_quarantined_hosts():
+    """
+    Returns all actively isolated/quarantined host IP addresses.
+    """
+    if attack_simulator is None:
+        raise HTTPException(status_code=503, detail="Attack simulator engine not loaded.")
+    return {
+        "status": "success",
+        "quarantined_hosts": attack_simulator.get_quarantined_hosts(),
+    }
+
+
+@router.post("/simulator/quarantine/release")
+def release_quarantined_host(req: ReleaseQuarantineRequest):
+    """
+    Un-quarantines an IP address and restores authorized traffic flow.
+    """
+    if attack_simulator is None:
+        raise HTTPException(status_code=503, detail="Attack simulator engine not loaded.")
+    released = attack_simulator.unquarantine_host(req.ip)
+    return {
+        "status": "success" if released else "not_found",
+        "released": released,
+        "ip": req.ip,
+    }
