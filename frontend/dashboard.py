@@ -4457,7 +4457,7 @@ def render_red_vs_blue_warroom():
             st.download_button(
                 "📥 Download Battle After-Action Report Dossier (JSON)",
                 data=aar_json,
-                file_name=f"netguard_battle_dossier_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                file_name=f"netguard_battle_dossier_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json",
                 key="dl_aar_json_btn",
             )
