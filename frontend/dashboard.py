@@ -1939,16 +1939,18 @@ def section_header(title, description=""):
     )
 
 
-def metric_card(icon, label, value, value_class=""):
+def metric_card(icon, label, value, value_class="", delta=None):
     is_na = value is None or value == "N/A"
     value_html = "N/A" if is_na else value
     css_class = "metric-na" if is_na else value_class
+    delta_html = f'<div style="font-size:10px; font-weight:700; color:var(--accent); margin-top:3px; font-family:var(--font-mono);">{delta}</div>' if delta else ""
     st.markdown(
         f"""
         <div class="metric-card">
             <div class="metric-icon-badge">{icon}</div>
             <div class="metric-label">{label}</div>
             <div class="metric-value {css_class}">{value_html}</div>
+            {delta_html}
         </div>
         """,
         unsafe_allow_html=True,
@@ -2332,7 +2334,7 @@ with st.sidebar:
     )
 
     # Active Authenticated User Badge & Sign Out Button
-    _curr_u = st.session_state.get("current_user", {})
+    _curr_u = st.session_state.get("current_user") or {}
     _u_name = _curr_u.get("username", "analyst")
     _u_full = _curr_u.get("full_name") or _u_name
     _u_role = (_curr_u.get("role") or "analyst").upper()
