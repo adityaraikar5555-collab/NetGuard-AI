@@ -300,6 +300,11 @@ def build_pdf(filename: str):
             Paragraph("SQLite DB &amp; Vector Store (src/database.py &amp; backend/rag/)", table_cell_style),
             Paragraph("Multi-tenant user store, hashed bcrypt credentials, isolated user alerts, sliding-window deduplication state, TF-IDF / persistent vector embeddings for RAG doc search.", table_cell_style)
         ],
+        [
+            Paragraph("<b>Tier 5: Active Containment &amp; SOAR</b>", table_cell_style),
+            Paragraph("Perimeter IPS &amp; Isolation (src/soar_engine.py &amp; src/attack_simulator.py)", table_cell_style),
+            Paragraph("Automated multi-platform firewall drop rule synthesis (Linux iptables, UFW, Windows PowerShell), Suricata/Snort inline drop rules, live in-memory Quarantined Host Registry, and cryptographic forensic scripts.", table_cell_style)
+        ],
     ]
     t_arch = Table(arch_layers_data, colWidths=[90, 150, 260])
     t_arch.setStyle(TableStyle([
@@ -490,6 +495,65 @@ def build_pdf(filename: str):
     ]))
     story.append(t_ae)
 
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("2.2 Active Attack Blocking, True IPS &amp; Multi-Platform SOAR Containment", h2_style))
+    story.append(Paragraph(
+        "Unlike conventional intrusion detection systems that only log passive alerts, NetGuard AI operates as a true "
+        "<b>Intrusion Prevention System (IPS)</b> and <b>Security Orchestration, Automation, and Response (SOAR)</b> platform. "
+        "Upon identifying malicious traffic (Supervised Risk &ge; 65/100 or Autoencoder Anomaly Score &gt; &tau;), the system "
+        "initiates active defense across five multi-perimeter enforcement layers:",
+        body_style
+    ))
+
+    containment_table_data = [
+        [Paragraph("Perimeter Enforcement Layer", table_header_style), Paragraph("Generated Containment Rule / Syntax", table_header_style), Paragraph("Execution Mechanism &amp; Defense Impact", table_header_style)],
+        [
+            Paragraph("<b>Windows Defender Firewall</b>", table_cell_style),
+            Paragraph("<code>New-NetFirewallRule -DisplayName \"NetGuard_Block_&lt;IP&gt;\" -Direction Inbound -RemoteAddress \"&lt;IP&gt;\" -Action Block</code>", code_style),
+            Paragraph("Executes via Windows PowerShell WMI interface; kernel-level driver immediately discards all inbound packets from the attacking host with zero response.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Linux Netfilter (iptables)</b>", table_cell_style),
+            Paragraph("<code>sudo iptables -I INPUT -p tcp -s &lt;IP&gt; --dport &lt;Port&gt; -j DROP -m comment --comment \"NetGuard_AutoBlock\"</code>", code_style),
+            Paragraph("Inserts a high-priority packet drop rule at line 1 of the INPUT chain; drops malicious TCP SYN and UDP packets silently before socket queues form.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Linux UFW</b>", table_cell_style),
+            Paragraph("<code>sudo ufw insert 1 deny from &lt;IP&gt; to any port &lt;Port&gt; proto tcp</code>", code_style),
+            Paragraph("Configures the Uncomplicated Firewall daemon with high-priority socket rejection.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Suricata Next-Gen IPS</b>", table_cell_style),
+            Paragraph("<code>drop tcp &lt;IP&gt; any -&gt; any &lt;Port&gt; (msg:\"[NetGuard] Auto-Drop\"; flow:established; sid:1000002; rev:1;)</code>", code_style),
+            Paragraph("Compiles inline hardware/AF_PACKET packet drop signatures dropping live malicious flows mid-stream.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Snort 3 Signature</b>", table_cell_style),
+            Paragraph("<code>reject tcp &lt;IP&gt; any -&gt; any &lt;Port&gt; (msg:\"[NetGuard] TCP Reset\"; sid:1000001; rev:1;)</code>", code_style),
+            Paragraph("Injects TCP RST packets to actively sever unauthorized socket handshakes.", table_cell_style)
+        ],
+    ]
+    t_contain = Table(containment_table_data, colWidths=[110, 205, 185])
+    t_contain.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), PRIMARY),
+        ("BOX", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, BG_LIGHT]),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(t_contain)
+
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        "<b>Active Host Isolation Architecture:</b><br/>"
+        "&bull; <b>Quarantined Host Registry (<code>src/attack_simulator.py</code>):</b> Maintains an active, thread-safe memory registry tracking quarantined IP addresses, attack classification, MITRE technique IDs, and exact isolation timestamps. Enables 1-click single-host isolation and instant administrative release.<br/>"
+        "&bull; <b>Autonomous ReAct Containment (<code>src/agents/soc_agent.py</code>):</b> Autonomous Tier-2 Copilot executes the <code>soar_generate_containment</code> tool during live investigations to formulate, test, and propose perimeter containment playbooks.<br/>"
+        "&bull; <b>Cryptographic Forensic Containment Playbooks (<code>src/forensic_packager.py</code>):</b> Automatically generates executable <code>containment_windows.ps1</code> and <code>containment_linux.sh</code> scripts bundled inside a tamper-evident ZIP archive with SHA-256 chain-of-custody verification.<br/>"
+        "&bull; <b>Dual-Mode Defense Philosophy:</b> Supports both <i>Autonomous Auto-Drop</i> for high-confidence volumetric threats and <i>Human-in-the-Loop 1-Click Approval</i> to prevent adversarial IP spoofing from inadvertently locking out mission-critical DNS or Active Directory domain controllers.",
+        body_style
+    ))
+
     story.append(PageBreak())
 
     # =========================================================================
@@ -536,10 +600,11 @@ def build_pdf(filename: str):
             "src/xai_engine.py, frontend/app.py (/explain)"
         ),
         (
-            "Feature 6: Agentic SOAR Remediation Playbooks",
-            "Security Orchestration, Automation, and Response engine. Synthesizes immediate containment configurations across "
-            "four defensive technologies: Linux iptables rules, Linux UFW commands, Windows PowerShell NetFirewallRule scripts, "
-            "and Snort / Suricata IDS alert/drop signatures. All commands include 1-click clipboard copy.",
+            "Feature 6: Active SOAR Containment & Multi-Platform Firewall Engine (True IPS)",
+            "Automated Security Orchestration, Automation, and Response (SOAR) engine that actively blocks identified adversaries. "
+            "Synthesizes immediate perimeter containment rules across 5 technologies: Linux iptables drop commands, Ubuntu UFW deny rules, "
+            "Windows PowerShell New-NetFirewallRule blocks, Suricata inline drop signatures, and Snort 3 TCP resets. Enables 1-click clipboard copy "
+            "and direct automated host quarantine.",
             "src/soar_engine.py, frontend/app.py (/soar/remediation)"
         ),
         (
@@ -625,11 +690,11 @@ def build_pdf(filename: str):
             "src/benchmark_validator.py, tests/test_validation_phase5.py"
         ),
         (
-            "Feature 19: Red vs Blue Interactive Cyber War-Room & Attack Simulator",
+            "Feature 19: Red vs Blue Interactive Cyber War-Room & Active Defense Arena",
             "Full-spectrum adversarial campaign generator and live cyber war-game simulator. Executes 10 multi-stage cyber attack profiles "
-            "(DDoS SSDP Amplification, Mirai Botnet, Cobalt Strike C2 Beacons, SQL Injection Data Exfiltration, and Ransomware Lateral Sweep). "
-            "Triggers automated SOAR blue-team containment, provides single-click host boundary isolation / unquarantine, and outputs "
-            "tamper-evident downloadable After-Action Reports (AAR) in JSON format.",
+            "(DDoS SSDP Amplification, Mirai Botnet, Cobalt Strike C2 Beacons, SQL Injection, and Ransomware Lateral Sweep). "
+            "Triggers automated SOAR blue-team containment, maintains an active in-memory Quarantined Host Registry with single-click "
+            "host isolation / unquarantine, and outputs tamper-evident downloadable After-Action Reports (AAR) in JSON format.",
             "src/attack_simulator.py, backend/detection_routes.py, frontend/dashboard.py (render_red_vs_blue_warroom)"
         ),
         (
@@ -970,6 +1035,10 @@ def build_pdf(filename: str):
         [
             Paragraph("<b>5. How is forensic chain of custody preserved?</b>", table_cell_style),
             Paragraph("<b>ISO/IEC 27037 Cryptographic Packaging:</b> Every incident dossier bundles raw flow telemetry, investigation reasoning steps, and containment playbooks sealed with an immutable SHA-256 digital fingerprint.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>6. Does NetGuard AI actively block and quarantine attacks (True IPS &amp; SOAR)?</b>", table_cell_style),
+            Paragraph("<b>Multi-Perimeter Active Containment:</b> NetGuard AI transitions from passive IDS to active IPS via automated SOAR. It maintains an in-memory Quarantined Host Registry, auto-generates native Windows Defender Firewall (PowerShell) and Linux (iptables/UFW) drop rules, compiles Suricata inline drop signatures, and exports executable .ps1/.sh containment scripts sealed with SHA-256 integrity.", table_cell_style)
         ],
     ]
     t_viva = Table(viva_points, colWidths=[180, 320])
