@@ -223,6 +223,7 @@ def build_feature_manual_pdf(filename: str):
     meta_table_data = [
         [Paragraph("<b>Document Purpose:</b>", body_style), Paragraph("Dedicated Feature-by-Feature Operator Handbook &amp; Demonstration Guide", body_style)],
         [Paragraph("<b>Target Audience:</b>", body_style), Paragraph("Major Project Evaluators, External Examiners, SOC Operators &amp; Security Engineers", body_style)],
+        [Paragraph("<b>Production Deployment:</b>", body_style), Paragraph("Hybrid Cloud: AWS EC2 (Backend API &amp; ML Inference) + Render (Streamlit Console) via DuckDNS (https://netguardai.duckdns.org/)", body_style)],
         [Paragraph("<b>System Coverage:</b>", body_style), Paragraph("All 20 Sidebar Navigation Consoles in frontend/dashboard.py", body_style)],
         [Paragraph("<b>Core Capabilities:</b>", body_style), Paragraph("Supervised RF (99.9%), PyTorch Zero-Day Autoencoder, 3D WebGL Threat Map, ReAct SOC Agent", body_style)],
         [Paragraph("<b>Testing &amp; Verification:</b>", body_style), Paragraph("89 Passing Automated Tests (100% Pass Rate across Unit &amp; Integration Suites)", body_style)],

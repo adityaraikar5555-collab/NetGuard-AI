@@ -19,21 +19,22 @@
 3. [True IPS & Active Attack Blocking (SOAR Engine)](#-true-ips--active-attack-blocking-soar-engine)
 4. [The 20 Sidebar SOC Navigation Consoles](#-the-20-sidebar-soc-navigation-consoles)
 5. [System Architecture](#-system-architecture)
-6. [Project Structure](#-project-structure)
-7. [Dual-Mode Live Traffic Ingestion & Flow Engine](#-dual-mode-live-traffic-ingestion--flow-engine)
-8. [Unsupervised PyTorch Autoencoder (Zero-Day Engine)](#-unsupervised-pytorch-autoencoder-zero-day-engine)
-9. [3D Global Threat Intelligence & Holographic Radar](#-3d-global-threat-intelligence--holographic-radar)
-10. [Autonomous Agentic AI & SOC Multi-Agent Swarm](#-autonomous-agentic-ai--soc-multi-agent-swarm)
-11. [Enterprise Auth, Multi-Tenancy & History Persistence](#-enterprise-auth-multi-tenancy--history-persistence)
-12. [Publication-Grade Documentation PDFs](#-publication-grade-documentation-pdfs)
-13. [Machine Learning Pipeline & Benchmarks](#-machine-learning-pipeline--benchmarks)
-14. [API Endpoints Reference](#-api-endpoints-reference)
-15. [Installation & Setup](#-installation--setup)
-16. [Running the Application](#-running-the-application)
-17. [Automated Test Suite (89 Tests)](#-automated-test-suite-89-tests)
-18. [Security, Privacy & Standards Compliance](#-security-privacy--standards-compliance)
-19. [Technologies Used](#-technologies-used)
-20. [Author & Acknowledgments](#-author--acknowledgments)
+6. [Hybrid Cloud Deployment Architecture (AWS EC2 + Render + DuckDNS)](#-hybrid-cloud-deployment-architecture-aws-ec2--render--duckdns)
+7. [Project Structure](#-project-structure)
+8. [Dual-Mode Live Traffic Ingestion & Flow Engine](#-dual-mode-live-traffic-ingestion--flow-engine)
+9. [Unsupervised PyTorch Autoencoder (Zero-Day Engine)](#-unsupervised-pytorch-autoencoder-zero-day-engine)
+10. [3D Global Threat Intelligence & Holographic Radar](#-3d-global-threat-intelligence--holographic-radar)
+11. [Autonomous Agentic AI & SOC Multi-Agent Swarm](#-autonomous-agentic-ai--soc-multi-agent-swarm)
+12. [Enterprise Auth, Multi-Tenancy & History Persistence](#-enterprise-auth-multi-tenancy--history-persistence)
+13. [Publication-Grade Documentation PDFs](#-publication-grade-documentation-pdfs)
+14. [Machine Learning Pipeline & Benchmarks](#-machine-learning-pipeline--benchmarks)
+15. [API Endpoints Reference](#-api-endpoints-reference)
+16. [Installation & Setup](#-installation--setup)
+17. [Running the Application](#-running-the-application)
+18. [Automated Test Suite (89 Tests)](#-automated-test-suite-89-tests)
+19. [Security, Privacy & Standards Compliance](#-security-privacy--standards-compliance)
+20. [Technologies Used](#-technologies-used)
+21. [Author & Acknowledgments](#-author--acknowledgments)
 
 ---
 
@@ -179,6 +180,60 @@ The Streamlit web application (`frontend/dashboard.py`) contains **20 dedicated 
 │ • ISO/IEC 27037 Cryptographic Case Packaging (SHA-256 Evidence Manifest)             │
 └───────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## ☁️ Hybrid Cloud Deployment Architecture (AWS EC2 + Render + DuckDNS)
+
+NetGuard AI is deployed in a production-ready **Decoupled Hybrid Cloud Architecture** designed for high throughput, fault tolerance, and zero operational cost:
+
+```
+                            [ Web & Mobile Users Worldwide ]
+                                          │
+                                          ▼ HTTPS (Port 443 / SSL)
+                    ┌───────────────────────────────────────────┐
+                    │      DUCKDNS DYNAMIC DOMAIN ROUTING       │
+                    │        https://netguardai.duckdns.org/    │
+                    └─────────────────────┬─────────────────────┘
+                                          │
+                                          ▼
+                    ┌───────────────────────────────────────────┐
+                    │        RENDER CLOUD WEB SERVICE           │
+                    │     Streamlit SOC Presentation Tier       │
+                    │   • 20 Sidebar Consoles · Three.js 3D     │
+                    │   • Dynamic Session Routing & Caching     │
+                    └─────────────────────┬─────────────────────┘
+                                          │
+                                          ▼ REST APIs & WebSockets (Port 8000)
+                    ┌───────────────────────────────────────────┐
+                    │            AWS EC2 COMPUTE CLOUD          │
+                    │      FastAPI Backend & ML Microservice    │
+                    │   • 78-Feature Random Forest Classifier   │
+                    │   • PyTorch Zero-Day Autoencoder (78D)    │
+                    │   • TreeSHAP Explainable AI (XAI) Engine  │
+                    │   • Groq ReAct Autonomous SOC Copilot     │
+                    │   • SOAR Multi-Platform Firewall Engine   │
+                    │   • SQLite Multi-Tenant Database (WAL)    │
+                    └───────────────────────────────────────────┘
+```
+
+### 1. Backend Microservices — AWS EC2 (Compute Tier)
+- **Host Infrastructure**: Amazon Web Services (AWS) EC2 Ubuntu Linux instance.
+- **Service Stack**: FastAPI asynchronous ASGI microservice running under Uvicorn (`uvicorn frontend.app:app --host 0.0.0.0 --port 8000`).
+- **Core Responsibilities**: Executes heavy computational workloads including 78-feature matrix transformations, sub-2ms Random Forest inference, PyTorch tensor reconstruction, TreeSHAP attributions, SQLite WAL database operations, and Groq ReAct agent cognitive loops.
+- **Security Group Isolation**: Restricted port mapping with JWT token authentication (HMAC-SHA256) and CORS security policies.
+
+### 2. Frontend SOC Console — Render (Presentation Tier)
+- **Host Infrastructure**: Render Cloud Application Platform.
+- **Service Stack**: Streamlit reactive web framework with Three.js WebGL spatial engines.
+- **Core Responsibilities**: Delivers the 20 sidebar security consoles, live charts, 3D holographic threat globe, and mobile-responsive UI to SOC analysts.
+
+### 3. Dynamic Domain & SSL Encryption — DuckDNS
+- **Custom Domain**: `https://netguardai.duckdns.org/`
+- **Capabilities**: Full SSL/TLS encryption, dynamic DNS record updating, and global availability across desktop, iOS, and Android clients without requiring commercial domain registration fees.
+
+### 🏆 Academic Viva Advantage:
+> *"Rather than packaging the web interface and heavy deep learning models into a single monolithic server, NetGuard AI deploys a **Decoupled Hybrid Cloud Architecture**. The compute-intensive machine learning and autoencoder inference pipelines run on a dedicated **AWS EC2** instance, while the analyst console is served through **Render** and mapped with SSL via **DuckDNS** (`https://netguardai.duckdns.org/`). This ensures zero UI lag, independent microservice scaling, and enterprise SOC resilience."*
 
 ---
 

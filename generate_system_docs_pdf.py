@@ -219,10 +219,11 @@ def build_pdf(filename: str):
 
     meta_table_data = [
         [Paragraph("<b>Release Version:</b>", body_style), Paragraph("2.5.0 Major Project Defense Edition (Award Ready)", body_style)],
+        [Paragraph("<b>Production Deployment:</b>", body_style), Paragraph("Hybrid Cloud: AWS EC2 (Backend Compute &amp; ML Microservice) + Render (Streamlit Console) via DuckDNS SSL (https://netguardai.duckdns.org/)", body_style)],
         [Paragraph("<b>Machine Learning Core:</b>", body_style), Paragraph("Hybrid Dual Ensembles (Supervised Random Forest 99.9% + Unsupervised PyTorch Autoencoder Zero-Day Engine)", body_style)],
         [Paragraph("<b>Agent Framework:</b>", body_style), Paragraph("Native ReAct SOC Tier-2 Agent, Threat Hunter (PSI Drift), Multi-Agent Swarm", body_style)],
         [Paragraph("<b>API &amp; Backend:</b>", body_style), Paragraph("FastAPI 0.141+ with Starlette High-Throughput Async, REST &amp; WebSocket Telemetry", body_style)],
-        [Paragraph("<b>Frontend Console:</b>", body_style), Paragraph("Streamlit Cyber SOC Console with 3D Spatial Topology, 3D Threat Globe &amp; 19 Specialized Pages", body_style)],
+        [Paragraph("<b>Frontend Console:</b>", body_style), Paragraph("Streamlit Cyber SOC Console with 3D Spatial Topology, 3D Threat Globe &amp; 20 Specialized Pages", body_style)],
         [Paragraph("<b>LLM &amp; RAG Engine:</b>", body_style), Paragraph("Groq Llama-3 / GPT-OSS (2.2s inference) + Local RAG Vector Knowledge Base", body_style)],
         [Paragraph("<b>Test Suite Verification:</b>", body_style), Paragraph("89 Automated Tests Passed (100% Pass Rate across all 5 Phases)", body_style)],
         [Paragraph("<b>Document Date:</b>", body_style), Paragraph(datetime.now().strftime("%B %d, %Y"), body_style)],
