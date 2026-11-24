@@ -24,7 +24,9 @@ from reportlab.platypus import (
     PageBreak,
     KeepTogether,
     HRFlowable,
+    Image as RLImage,
 )
+from PIL import Image as PILImage
 from reportlab.pdfgen import canvas
 
 
@@ -193,6 +195,18 @@ def build_feature_manual_pdf(filename: str):
         fontSize=8.5,
         leading=13,
         textColor=DARK_TEXT,
+    )
+
+    caption_style = ParagraphStyle(
+        "FigureCaption",
+        parent=styles["Normal"],
+        fontName="Helvetica-Oblique",
+        fontSize=7.5,
+        leading=10,
+        textColor=MUTED_TEXT,
+        alignment=1,
+        spaceBefore=3,
+        spaceAfter=8,
     )
 
     story = []
@@ -602,6 +616,34 @@ def build_feature_manual_pdf(filename: str):
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ]))
         story.append(t_feat)
+
+        # Automatically embed matching screenshot if available in docs/screenshots/
+        screenshots_dir = Path(__file__).resolve().parent / "docs" / "screenshots"
+        try:
+            num = int(title.split(".")[0].strip())
+            matched_files = (
+                list(screenshots_dir.glob(f"{num:02d}_*"))
+                + list(screenshots_dir.glob(f"{num}_*"))
+                + list(screenshots_dir.glob(f"feature_{num}.*"))
+                + list(screenshots_dir.glob(f"feature_{num:02d}.*"))
+            )
+            matched_images = [f for f in matched_files if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")]
+            if matched_images:
+                img_path = matched_images[0]
+                with PILImage.open(img_path) as pim:
+                    orig_w, orig_h = pim.size
+                target_w = 490
+                target_h = min(220, target_w * (orig_h / max(1, orig_w)))
+                story.append(Spacer(1, 6))
+                story.append(RLImage(str(img_path), width=target_w, height=target_h))
+                story.append(Paragraph(
+                    f"<i>Figure {num}: Live Deployed Console Interface &mdash; {title.split('(')[0].strip()} (https://netguardai.duckdns.org/)</i>",
+                    caption_style,
+                ))
+                story.append(Spacer(1, 6))
+        except Exception:
+            pass
+
         story.append(Spacer(1, 14))
 
     # =========================================================================

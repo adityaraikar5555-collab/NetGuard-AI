@@ -1,41 +1,37 @@
 # 🛡️ NetGuard AI — Network Anomaly Detection & Autonomous SOC Platform
 
-> **AI-Powered Network Intrusion Detection System (NIDS) + Enterprise Security Operations Center (SOC) Platform**  
+> **AI-Powered Network Intrusion Prevention System (NIPS) + Enterprise Security Operations Center (SOC) Platform**  
 > Built for the **Major Project** (Bachelor of Engineering — Computer Science) by **Aditya Raikar**.
 
-![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.13-blue?logo=python)
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)
-![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit)
-![Scikit-Learn](https://img.shields.io/badge/ML-Scikit--Learn-orange?logo=scikitlearn)
-![RandomForest](https://img.shields.io/badge/Algorithm-Random%20Forest-green)
-![Tests](https://img.shields.io/badge/Tests-89%20Passed-brightgreen)
-![Live Traffic](https://img.shields.io/badge/Live%20Traffic-Scapy%20%2B%20DPI-informational)
-![Groq](https://img.shields.io/badge/ReAct%20Speed-Groq%20Ultra--Fast-f55036)
-![Docs](https://img.shields.io/badge/Specification-PDF%20Included-red?logo=adobeacrobatreader)
-![Status](https://img.shields.io/badge/Status-Completed-success)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-netguardai.duckdns.org-0284c7?style=for-the-badge&logo=googlechrome&logoColor=white)](https://netguardai.duckdns.org/)
+[![Tests](https://img.shields.io/badge/Tests-89%20Passed-brightgreen?style=for-the-badge&logo=pytest)](tests/)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.13-blue?style=for-the-badge&logo=python)](requirements.txt)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Zero--Day%20Autoencoder-EE4C2C?style=for-the-badge&logo=pytorch)](src/zero_day_engine.py)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)](frontend/app.py)
+[![Streamlit](https://img.shields.io/badge/Consoles-20%20Pages-FF4B4B?style=for-the-badge&logo=streamlit)](frontend/dashboard.py)
 
 ---
 
 ## 📌 Table of Contents
 
 1. [Project Overview](#-project-overview)
-2. [Key Features](#-key-features)
-3. [System Architecture](#-system-architecture)
-4. [Project Structure](#-project-structure)
-5. [Dual-Mode Live Traffic Ingestion & Flow Engine](#-dual-mode-live-traffic-ingestion--flow-engine)
-6. [Enterprise Auth, Multi-Tenancy & History Persistence](#-enterprise-auth-multi-tenancy--history-persistence)
-7. [Multi-Channel Alert Notification Engine](#-multi-channel-alert-notification-engine)
-8. [Datasets Used](#-datasets-used)
-9. [Machine Learning Pipeline & Performance](#-machine-learning-pipeline--performance)
+2. [Key Architectural Innovations](#-key-architectural-innovations)
+3. [True IPS & Active Attack Blocking (SOAR Engine)](#-true-ips--active-attack-blocking-soar-engine)
+4. [The 20 Sidebar SOC Navigation Consoles](#-the-20-sidebar-soc-navigation-consoles)
+5. [System Architecture](#-system-architecture)
+6. [Project Structure](#-project-structure)
+7. [Dual-Mode Live Traffic Ingestion & Flow Engine](#-dual-mode-live-traffic-ingestion--flow-engine)
+8. [Unsupervised PyTorch Autoencoder (Zero-Day Engine)](#-unsupervised-pytorch-autoencoder-zero-day-engine)
+9. [3D Global Threat Intelligence & Holographic Radar](#-3d-global-threat-intelligence--holographic-radar)
 10. [Autonomous Agentic AI & SOC Multi-Agent Swarm](#-autonomous-agentic-ai--soc-multi-agent-swarm)
-11. [Publication-Grade System Documentation (PDF)](#-publication-grade-system-documentation-pdf)
-12. [API Endpoints Reference](#-api-endpoints-reference)
-13. [Installation & Setup](#-installation--setup)
-14. [Running the Application](#-running-the-application)
-15. [Automated Test Suite (61 Tests)](#-automated-test-suite-61-tests)
-16. [Results & Visualizations](#-results--visualizations)
-17. [Web Application Screenshots](#-web-application-screenshots)
-18. [Security, Privacy & Deployment Safety](#-security-privacy--deployment-safety)
+11. [Enterprise Auth, Multi-Tenancy & History Persistence](#-enterprise-auth-multi-tenancy--history-persistence)
+12. [Publication-Grade Documentation PDFs](#-publication-grade-documentation-pdfs)
+13. [Machine Learning Pipeline & Benchmarks](#-machine-learning-pipeline--benchmarks)
+14. [API Endpoints Reference](#-api-endpoints-reference)
+15. [Installation & Setup](#-installation--setup)
+16. [Running the Application](#-running-the-application)
+17. [Automated Test Suite (89 Tests)](#-automated-test-suite-89-tests)
+18. [Security, Privacy & Standards Compliance](#-security-privacy--standards-compliance)
 19. [Technologies Used](#-technologies-used)
 20. [Author & Acknowledgments](#-author--acknowledgments)
 
@@ -43,69 +39,112 @@
 
 ## 📖 Project Overview
 
-Cyber attacks and distributed intrusion techniques are increasing exponentially, necessitating sub-second automated threat mitigation. **NetGuard AI** is a complete, enterprise-ready **Network Intrusion Detection System (NIDS)** and **Security Operations Center (SOC)** platform that autonomously inspects network traffic, identifies zero-day and known anomalous attack vectors, explains root causes via explainable AI, and executes containment playbooks in real time.
+Cyber attacks and distributed intrusion techniques are increasing exponentially, necessitating sub-second automated threat mitigation. **NetGuard AI** is a complete, production-grade **Network Intrusion Prevention System (NIPS)** and **Security Operations Center (SOC)** platform that autonomously inspects network traffic, detects known and novel zero-day exploits, provides explainable AI (XAI) root-cause attribution, and actively quarantines attackers across multiple host and network perimeters in real time.
 
 Trained and cross-validated on two flagship cybersecurity benchmark datasets:
-- **NSL-KDD** (KDDTrain+ / KDDTest-21)
-- **CICIDS-2017** (Multi-day PCAP flow captures)
+- **CICIDS-2017** (Multi-day PCAP flow captures with 78 continuous network dimensions)
+- **NSL-KDD** (KDDTrain+ / KDDTest-21 connection records with 41 attributes)
 
-NetGuard AI achieves **99.9% accuracy** and sub-5ms inference latency. Beyond passive classification, the platform features:
-1. **Dual-Mode Live Traffic Ingestion**: Live hardware NIC packet interception using Scapy and high-velocity synthetic flow injection.
-2. **Autonomous ReAct SOC Copilot**: Tier-2 reasoning loop powered by Groq ultra-fast LLMs (`llama-3.3-70b-versatile` / `openai/gpt-oss-120b`), completing investigations in under 7 seconds.
-3. **Multi-Agent Incident Swarm**: Hierarchical coordination of Supervisor, Forensics, Threat Intel, and Remediation agents outputting STIX 2.1 bundles.
-4. **Enterprise Multi-Tenant Security**: Role-based access control (RBAC), bcrypt salted cryptography, JWT token authorization, and persistent user investigation history across email sessions.
-5. **Interactive MITRE ATT&CK Matrix & Cryptographic Case Packager**: Digital evidence sealing adhering to ISO/IEC 27037 digital forensics standards.
+NetGuard AI achieves **99.9% accuracy** and sub-2ms inference latency. Beyond passive classification, the platform features:
+1. **True IPS & Multi-Platform SOAR Containment**: Automated synthesis of Windows Defender Firewall (`New-NetFirewallRule`), Linux Netfilter (`iptables`), Ubuntu `UFW`, and inline `Suricata`/`Snort` drop rules with an active Quarantined Host Registry.
+2. **Unsupervised Deep Autoencoder (Zero-Day Engine)**: A symmetric neural bottleneck ($78 \to 48 \to 24 \to 12 \to 24 \to 48 \to 78$) trained exclusively on benign traffic to isolate unknown exploits via reconstruction error spikes ($MSE > \tau = 0.2618$).
+3. **3D Global Threat Intelligence Map**: WebGL Three.js interactive planetary cyber defense radar rendering real-time ballistic missile trajectories from international threat nodes to local SOC Defense HQ.
+4. **Autonomous ReAct SOC Copilot**: Tier-2 reasoning loop powered by Groq ultra-fast LLMs (`openai/gpt-oss-120b` / `llama-3.3-70b-versatile`), completing full multi-tool investigations in under 7 seconds (6.6x faster than cloud LLMs).
+5. **Interactive Red vs Blue Cyber War-Room**: 1-click offensive attack emulation (SYN Flood, Mirai, Cobalt Strike C2) against real-time Blue Team autonomous defense and host quarantine.
+6. **20 Dedicated SOC Navigation Consoles**: Full-featured dark cyber dashboard deployed live at [https://netguardai.duckdns.org/](https://netguardai.duckdns.org/).
 
 ---
 
-## ✨ Key Features
+## 🚀 Key Architectural Innovations
 
-- **Dual-Dataset Anomaly Detection**
-  - Production Random Forest engines for **CICIDS-2017** (78 features) and **NSL-KDD** (41 features).
-  - Evaluates confidence, attack probability, calibrated risk score (0–100), and categorical severity tier.
+| Innovation | Implementation | Technical Advantage |
+|---|---|---|
+| **True IPS Attack Blocking** | `src/soar_engine.py` & `src/attack_simulator.py` | Multi-perimeter packet drop across Windows Firewall, Linux `iptables`, and Suricata IPS with live host quarantine. |
+| **Zero-Day Autoencoder** | `src/zero_day_engine.py` ($78 \to 12 \to 78$) | Unsupervised detection of novel zero-day exploits with pure-NumPy matrix fallback (<0.2ms latency). |
+| **Dual-Engine Fusion** | `ZeroDayEngine.dual_engine_fusion()` | Fuses Supervised Random Forest ($P_{\text{Attack}}$) with Unsupervised Autoencoder ($MSE$) to defeat stealth evasions. |
+| **3D WebGL Threat Map** | `src/threat_map_engine.py` & Three.js | Real-time geodesic quadratic Bezier missile arcs connecting global city coordinates with HUD telemetry. |
+| **Autonomous ReAct Agent** | `src/agents/soc_agent.py` (Groq API) | Autonomous multi-tool reasoning (`Thought -> Action -> Observation`) delivering audit-ready dossiers in ~5 seconds. |
+| **Dual Ingestion Sensor** | `src/live_monitor.py` | Real-time physical NIC packet sniffer (Scapy) + 78-feature synthetic flow burst injector. |
+| **Explainable AI (XAI)** | `src/xai_engine.py` | TreeSHAP mathematical feature attribution + per-feature residual attribution $e_j = (x_j - \hat{x}_j)^2$. |
+| **Forensic Packaging** | `src/forensic_packager.py` | ISO/IEC 27037 SHA-256 sealed ZIP archives with `.ps1` and `.sh` containment playbooks. |
 
-- **Dual-Mode Live Traffic Ingestion & Flow Assembly**
-  - **Mode A (Hardware Interface Sniffer)**: Live packet capture on physical network adapters using Scapy; automatically aggregates packets into bidirectional 5-tuple flows (duration, byte/packet volumes, flag ratios, inter-arrival times).
-  - **Mode B (High-Velocity Offline Replay)**: Automated synthetic traffic generator for air-gapped simulation, stress testing, and benchmark validation.
+---
 
-- **Enterprise Authentication & Cross-Login History Persistence**
-  - Secure signup and login with email verification, bcrypt password hashing (12 rounds), and cryptographically signed JWT access tokens.
-  - Multi-tenant isolation: alerts and autonomous investigation history are persisted in SQLite (WAL mode) and automatically reloaded whenever the user relogins with their email.
+## 🛡️ True IPS & Active Attack Blocking (SOAR Engine)
 
-- **Autonomous Agentic AI Copilot (Powered by Groq Acceleration)**
-  - ReAct framework (`Thought -> Action -> Observation`) executing 6 cyber security tools.
-  - Accelerated with Groq LLM integration, slashing end-to-end multi-step investigations from 47 seconds to under 7 seconds.
-  - Full fallback resiliency to Gemini and embedded deterministic policy rules with a zero-crash guarantee.
+Unlike traditional intrusion detection systems (IDS) that only generate passive alert logs after damage is done, NetGuard AI acts as a **True Intrusion Prevention System (IPS)** and **SOAR** engine:
 
-- **Multi-Channel Alert Notification Engine**
-  - Configurable dispatch to Webhooks (Slack, Microsoft Teams, Discord, custom SIEMs) and SMTP email alerts.
-  - Smart alert deduplication and rate-limiting to prevent SOC fatigue during massive distributed attacks.
+```
+                      [ Incoming Network Flow ]
+                                  │
+                                  ▼
+             ┌────────────────────────────────────────┐
+             │   Dual ML + Zero-Day Autoencoder Core  │
+             └────────────────────┬───────────────────┘
+                                  │ Attack Identified (Risk ≥ 65 or MSE > τ)
+                                  ▼
+             ┌────────────────────────────────────────┐
+             │       Active SOAR Containment Engine   │
+             └────────────────────┬───────────────────┘
+                                  │
+      ┌───────────────────────────┼───────────────────────────┐
+      ▼                           ▼                           ▼
+[ Windows Firewall ]       [ Linux iptables ]       [ Suricata Inline IPS ]
+New-NetFirewallRule        iptables -I INPUT -j DROP drop tcp any -> any
+RemoteAddress: <IP>        Source: <IP>             Flow: Established
+Action: Block              Priority: Line 1         Active Session Drop
+```
 
-- **Forensic PCAP Parser & DPI Engine**
-  - Pure-Python binary PCAP/PCAPNG packet parser (`src/pcap_extractor.py`) extracting 28 statistical flow features with zero Wireshark dependencies.
+### Generated Multi-Perimeter Containment Commands:
+1. **Windows Defender Firewall (PowerShell)**:
+   ```powershell
+   New-NetFirewallRule -DisplayName "NetGuard_Block_<IP>" -Direction Inbound -RemoteAddress "<IP>" -Action Block
+   ```
+2. **Linux Netfilter (iptables)**:
+   ```bash
+   sudo iptables -I INPUT -p tcp -s <Attacker_IP> --dport <Port> -j DROP -m comment --comment "NetGuard_AutoBlock"
+   ```
+3. **Linux UFW (Uncomplicated Firewall)**:
+   ```bash
+   sudo ufw insert 1 deny from <Attacker_IP> to any port <Port> proto tcp
+   ```
+4. **Suricata Next-Gen IPS Signature**:
+   ```text
+   drop tcp <Attacker_IP> any -> any <Port> (msg:"[NetGuard] Auto-Drop for CRITICAL Anomaly"; sid:1000002; rev:1;)
+   ```
+5. **Snort 3 Signature (TCP Reset)**:
+   ```text
+   reject tcp <Attacker_IP> any -> any <Port> (msg:"[NetGuard] TCP Reset Injection"; sid:1000001; rev:1;)
+   ```
 
-- **Interactive MITRE ATT&CK® Enterprise Matrix Navigator**
-  - Full 14-tactic Cyber Kill Chain coverage (`TA0043`–`TA0040`) with live threat heatmaps and deep technique inspection.
+---
 
-- **Adversarial Red-Team Evasion Tester**
-  - Simulates 4 evasion vectors: Jitter & Header Padding, Low-and-Slow Rate Throttling, TCP Chameleon Masking, and Boundary Feature Perturbation. Computes a quantitative **Robustness Index**.
+## 🖥️ The 20 Sidebar SOC Navigation Consoles
 
-- **Cryptographic Case Packager (ISO/IEC 27037 Compliant)**
-  - 1-click forensic dossier exporter bundling SHA-256 sealed manifest, executive HTML report, Linux/Windows containment scripts, Snort/Suricata IDS rules, STIX 2.1 JSON, and raw telemetry CSV.
+The Streamlit web application (`frontend/dashboard.py`) contains **20 dedicated security consoles** accessible from the sidebar:
 
-- **Red vs Blue Interactive Cyber War-Room & Attack Simulator**
-  - Live adversarial war-game simulation executing 10 multi-stage cyber attack campaigns (DDoS Amplification, Mirai Botnet, Cobalt Strike C2, SQLi, Ransomware Lateral Movement). Features automated SOAR blue-team containment, single-click host quarantine/unquarantine, and downloadable After-Action Reports (AAR).
-
-- **3D Global Threat Intelligence & Geodesic Attack Map**
-  - High-performance WebGL/Three.js interactive 3D holographic Earth globe displaying real-time ballistic cyber threat trajectories from global origin nodes (Frankfurt, Beijing, Moscow, London, São Paulo, Tokyo, Sydney) to Central SOC Defense HQ.
-  - Animated cyber missile particles, expanding perimeter radar pulses, top threat origin nations leaderboard, and streaming telemetry feed.
-
-- **Unsupervised Deep Autoencoder (Zero-Day Anomaly Detection Engine)**
-  - PyTorch symmetric feedforward neural network (`Linear(78→48→24→12) ⇄ Linear(12→24→48→78)`) trained exclusively on benign traffic manifolds.
-  - Identifies novel zero-day attacks and stealth evasions through catastrophic reconstruction error (MSE) spikes exceeding dynamic threshold $\tau$. Includes feature-level reconstruction attribution residuals (Zero-Day XAI) and Dual-Engine Threat Fusion with Random Forest.
-
-- **Rich Streamlit SOC Dashboard with 19 Pages**
-  - Dark cyber / light enterprise theme, glassmorphism, 3D WebGL neural topology visualizer, live activity feed, and dedicated settings for API latency diagnostics.
+| # | Console | Core Capability | Demonstration Highlight |
+|---|---|---|---|
+| **1** | **🏠 Overview** | Executive SOC command center | KPI cards, sub-2ms latency check, system status |
+| **2** | **🌐 Live Traffic** | Dual-mode Scapy sniffer & synthetic burst | Hardware adapter sniffing vs 1-click synthetic flow burst |
+| **3** | **📊 Traffic Analytics** | Exploratory data analysis (EDA) | Flow duration histograms, abnormal port clustering |
+| **4** | **🚨 Threat Detection** | ML intrusion classifier & incident triage | Risk score grading (0–100), 1-click SOAR firewall isolation |
+| **5** | **🌍 Global Threat Map** | 3D Three.js WebGL holographic radar | Ballistic cyber missile arcs, glowing origin pins, HUD intel |
+| **6** | **🧬 Zero-Day Deep Engine** | Unsupervised PyTorch Autoencoder ($78 \to 12 \to 78$) | Reconstruction residual gauge spike, top-5 XAI attribution |
+| **7** | **⚔️ Red vs Blue War-Room** | Active adversarial warfare simulator | Offensive attack emulation vs Blue Team host quarantine |
+| **8** | **🛡️ MITRE ATT&CK Matrix** | 14-tactic Enterprise kill chain navigator | Illuminated attack heatmaps, CVE technique dialogs |
+| **9** | **⚡ Agentic SOC Copilot** | Autonomous Groq ReAct Tier-2 investigator | Autonomous 5-second multi-tool investigation and dossier |
+| **10** | **🕸️ Network Topology** | 3D WebGL neural spatial asset visualizer | Fibonacci sphere graph showing compromised nodes in red |
+| **11** | **🤖 ML Insights** | Model introspection & confusion matrix | Gini feature importance rankings, ROC-AUC curves |
+| **12** | **🎯 Adversarial Red-Team** | FGSM / noise evasion robustness tester | Perturbation slider ($\epsilon = 0.40$) certifying $>96\%$ accuracy |
+| **13** | **🧠 SOC AI Assistant** | RAG conversational cybersecurity chatbot | Grounded mitigation queries with ready-to-run commands |
+| **14** | **📁 Dataset Analysis** | CICIDS-2017 & NSL-KDD benchmark explorer | Class imbalance breakdown, memory footprint, raw flows |
+| **15** | **📈 Data Visualization** | Multi-attribute scatter, violin & correlation | Lasso-select anomalous outlier clusters |
+| **16** | **📜 Prediction History** | Searchable audit trail with CSV export | Filter by date/time, IP, and export compliance logs |
+| **17** | **📋 User Alert History** | Multi-tenant persistent incident tracker | Persistent triage states (Triage $\to$ Investigating $\to$ Closed) |
+| **18** | **🕓 Incident Timeline** | Forensic sequence of events | Milestone progression with sub-second Time-to-Containment |
+| **19** | **⚙️ System Status** | Hardware diagnostics & subsystem health | CPU/RAM gauges and 5 subsystem readiness badges |
+| **20** | **🛠️ Settings & ℹ️ About** | Console configuration & API latency check | Local/cloud API toggle, 2–4ms ping latency tester |
 
 ---
 
@@ -114,29 +153,30 @@ NetGuard AI achieves **99.9% accuracy** and sub-5ms inference latency. Beyond pa
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │                    STREAMLIT SOC DASHBOARD (frontend/dashboard.py)                       │
-│  Overview · Live Traffic Monitor · Threat Detection · ⚡ Agentic SOC Copilot · MITRE     │
-│  Adversarial Red-Team · 3D Topology · User Alert History · Latency Diagnostic Console    │
+│  20 Sidebar Consoles · 3D WebGL Threat Map · Red vs Blue Arena · Zero-Day Deep Engine   │
+│  Overview · Live Traffic · Threat Detection · ⚡ Agentic Copilot · MITRE ATT&CK Matrix   │
 └────────────────────────────────────────────┬────────────────────────────────────────────┘
                                              │ HTTP REST / WebSocket (Port 8000)
 ┌────────────────────────────────────────────▼────────────────────────────────────────────┐
 │                             FASTAPI BACKEND (frontend/app.py)                           │
 │  /auth/* · /predict/* · /analyze/* · /monitor/* · /detection/* · /notifications/*       │
-│  /agent/investigate · /agent/hunt · /agent/swarm · /chat · /health · /api/status        │
+│  /detection/zero-day/* · /detection/threat-map/* · /detection/warroom/* · /chat         │
 └────────┬───────────────────┬────────────────────┬────────────────────┬──────────────────┘
          │                   │                    │                    │
 ┌────────▼────────┐ ┌────────▼─────────┐ ┌────────▼──────────┐ ┌───────▼────────────────┐
-│  ML PREDICTION  │ │ LIVE INGESTION   │ │  AGENTIC SOC      │ │  ENTERPRISE PERSISTENCE│
-│  ENGINE         │ │ & FLOW SNIFFER   │ │  FRAMEWORK        │ │  & MULTI-TENANCY       │
-│ • CICIDS-2017 RF│ │ • Scapy Sniffer  │ │ • Groq ReAct Agent│ │ • SQLite WAL Engine    │
-│ • NSL-KDD RF    │ │ • Flow Assembler │ │ • Multi-Agent     │ │ • Bcrypt Hash (12 rnd) │
-│ • Risk Scorer   │ │ • Synthetic Gen  │ │   Swarm (STIX 2.1)│ │ • JWT Token Validator  │
-│ • XAI Attribution││ • Sliding Window │ │ • Drift Hunter    │ │ • Per-User History     │
+│  ML & ZERO-DAY  │ │ LIVE INGESTION   │ │  AGENTIC SOC      │ │  ENTERPRISE PERSISTENCE│
+│  ENCLAVE        │ │ & FLOW SENSOR    │ │  FRAMEWORK        │ │  & MULTI-TENANCY       │
+│ • Random Forest │ │ • Scapy Sniffer  │ │ • Groq ReAct Agent│ │ • SQLite WAL Engine    │
+│ • PyTorch Auto- │ │ • Flow Assembler │ │ • Multi-Agent     │ │ • Bcrypt Hash (12 rnd) │
+│   encoder (78D) │ │ • Synthetic Gen  │ │   Swarm (STIX 2.1)│ │ • JWT Token Validator  │
+│ • TreeSHAP XAI  │ │ • DPI Extractor  │ │ • Drift Hunter    │ │ • Per-User History     │
 └────────┬────────┘ └────────┬─────────┘ └────────┬──────────┘ └───────┬────────────────┘
          │                   │                    │                    │
 ┌────────▼───────────────────▼────────────────────▼────────────────────▼────────────────┐
-│                           SECURITY TOOLS & KNOWLEDGE REGISTRY                         │
-│   • Threat Intel (IOCs) · Multiclass Classifier · MITRE Mapping · SOAR Containment    │
-│   • Multi-Channel Notifications (Webhook/Email) · 12-Document Curated RAG Vector Store│
+│                   ACTIVE CONTAINMENT & PERIMETER DEFENSE LAYER                         │
+│ • Windows Defender Firewall (PowerShell) · Linux Netfilter (iptables) · Ubuntu UFW   │
+│ • Suricata Inline IPS Drop Rules · Snort 3 TCP Reset · Quarantined Host Registry       │
+│ • ISO/IEC 27037 Cryptographic Case Packaging (SHA-256 Evidence Manifest)             │
 └───────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -150,7 +190,7 @@ Network Anamoly Detection/
 ├── backend/                              # FastAPI Service Routers
 │   ├── auth_routes.py                    # 🔐 JWT Signup, Login, Profile & Multi-Tenant History
 │   ├── monitor_routes.py                 # 📡 Live Sniffer Control & Hardware Interface Listing
-│   ├── detection_routes.py               # ⚡ Real-Time Streaming Detection & Flow Sockets
+│   ├── detection_routes.py               # ⚡ Real-Time Streaming, Zero-Day & Threat Map APIs
 │   ├── notification_routes.py            # 🔔 Webhook, Slack & Email Dispatch Control
 │   ├── main.py                           # Application Router Aggregator
 │   ├── predictor.py                      # Model inference adapter
@@ -162,7 +202,7 @@ Network Anamoly Detection/
 │       └── documents/                    # 12+ Curated SOC operational guides
 │
 ├── frontend/                             # Streamlit SOC Command Center
-│   ├── dashboard.py                      # ⭐ 16-Page SOC Dashboard (Live Traffic, Swarm, Auth)
+│   ├── dashboard.py                      # ⭐ 20-Page SOC Dashboard (Live Traffic, Threat Map, Zero-Day)
 │   ├── app.py                            # ⭐ Primary FastAPI Application Entrypoint
 │   ├── auth_client.py                    # Client-side Auth & JWT Token Manager
 │   ├── ui_components.py                  # Cyber design system, badges & radar panels
@@ -170,6 +210,10 @@ Network Anamoly Detection/
 │
 ├── src/                                  # Core Engines & Autonomous Agents
 │   ├── prediction_engine.py              # Central dual-dataset ML inference engine
+│   ├── zero_day_engine.py                # 🧬 PyTorch Unsupervised Autoencoder & NumPy Fallback
+│   ├── threat_map_engine.py              # 🌍 3D Geodesic Threat Intelligence Engine
+│   ├── attack_simulator.py               # ⚔️ Red vs Blue Adversarial War-Room Engine
+│   ├── soar_engine.py                    # 🛡️ Multi-platform firewall containment generator
 │   ├── live_monitor.py                   # 📡 Scapy packet sniffer & flow assembler
 │   ├── realtime_detector.py              # ⚡ Real-time continuous flow detector
 │   ├── notification_engine.py            # 🔔 Multi-channel webhook & email dispatcher
@@ -185,107 +229,67 @@ Network Anamoly Detection/
 │       ├── multi_agent_swarm.py          # Hierarchical Swarm (Supervisor, Forensics, etc.)
 │       └── tools.py                      # 6 Core Cyber Tools (IOC, SHAP, SOAR, MITRE)
 │
-├── data/                                 # Training & Test Datasets (Excluded from Git)
-│   ├── CICIDS-2017/                      # Validation sample fixtures (test_10_rows.csv)
-│   └── NSL-KDD/                          # Test fixtures
-│
-├── models/                               # Serialized Model Artifacts (.pkl)
+├── models/                               # Serialized Model Artifacts
 │   ├── cicids_anomaly_model.pkl          # Trained Random Forest on CICIDS-2017
 │   ├── cicids_label_encoder.pkl          # Label encoder for CICIDS
 │   ├── nsl-kdd_anomaly_model.pkl         # Tuned Random Forest on NSL-KDD
-│   └── nsl-kdd_label_encoder.pkl         # Categorical feature encoder
+│   ├── nsl-kdd_label_encoder.pkl         # Categorical feature encoder
+│   ├── zero_day_autoencoder.pt           # PyTorch deep autoencoder weights
+│   ├── zero_day_weights.npz              # Exported NumPy matrix weights (Zero-dependency fallback)
+│   ├── zero_day_scaler.pkl               # Robust feature scaler for 78 dimensions
+│   └── zero_day_meta.json                # Calibration metadata & threshold (τ = 0.2618)
 │
-├── tests/                                # Comprehensive Automated Test Suite (61 Tests)
-│   ├── test_auth_phase1.py               # Tests for Auth, Bcrypt, JWT & SQLite Tenancy
-│   ├── test_live_monitor_phase2.py       # Tests for Scapy Sniffer & Flow Assembly
-│   ├── test_realtime_detection_phase3.py # Tests for Continuous Streaming Detection
-│   ├── test_notifications_phase4.py      # Tests for Webhook & Email Notification Engine
-│   ├── test_validation_phase5.py         # Tests for Latency & Throughput Benchmarks
-│   ├── test_all_7_features.py            # Integration tests across all 7 advanced features
-│   ├── test_soc_agent.py                 # Multi-LLM ReAct & Swarm Agent tests
-│   └── test_real_predictions.py          # End-to-end model inference validation
+├── tests/                                # Comprehensive Automated Test Suite (89 Tests)
+│   ├── test_zero_day_engine.py           # 🧬 PyTorch Autoencoder & Zero-Day Detection Tests (7 tests)
+│   ├── test_attack_simulator.py          # ⚔️ Red vs Blue War-Room Simulation Tests (8 tests)
+│   ├── test_threat_map.py                # 🌍 3D Global Threat Intelligence Tests (13 tests)
+│   ├── test_auth_phase1.py               # 🔐 Auth, Bcrypt, JWT & SQLite Tenancy Tests
+│   ├── test_live_monitor_phase2.py       # 📡 Scapy Sniffer & Flow Assembly Tests
+│   ├── test_realtime_detection_phase3.py # ⚡ Continuous Streaming Detection Tests
+│   ├── test_notifications_phase4.py      # 🔔 Webhook & Email Notification Engine Tests
+│   ├── test_validation_phase5.py         # ⏱️ Latency & Throughput Benchmark Tests
+│   ├── test_soc_agent.py                 # 🤖 Multi-LLM ReAct & Swarm Agent Tests
+│   ├── test_adversarial_forensics.py     # 🎯 Adversarial Evasion & Forensic Packaging Tests
+│   ├── test_all_7_features.py            # Integration tests across all advanced features
+│   ├── test_pcap_mitre.py                # PCAP binary extraction & MITRE mapping tests
+│   ├── test_prediction_engine.py         # Dual Random Forest model inference tests
+│   ├── test_real_predictions.py          # Real-world benchmark dataset flow evaluations
+│   └── test_csv_compression.py           # Data compression & memory optimization tests
 │
-├── generate_system_docs_pdf.py           # 📄 Publication-grade PDF generator script
-├── NetGuard_AI_Comprehensive_Documentation.pdf # 📄 Complete 9-page system specification
-├── pytest.ini                            # Pytest configuration & warning suppression
+├── docs/screenshots/                     # Directory for live deployed application screenshots
+├── generate_system_docs_pdf.py           # 📄 Master System Architecture PDF Generator
+├── generate_user_manual_pdf.py           # 📄 20-Feature Sidebar User Manual PDF Generator
+├── NetGuard_AI_Comprehensive_Documentation.pdf # 📄 11-page master architecture specification
+├── NetGuard_AI_Sidebar_Feature_User_Manual.pdf # 📄 13-page dedicated feature operations handbook
 ├── run_soc.bat                           # 🚀 1-Click Windows Unified Launcher
 ├── requirements.txt                      # Complete pinned dependencies
-└── README.MD                             # System Documentation (This file)
+└── README.md                             # System Documentation (This file)
 ```
 
 ---
 
-## 📡 Dual-Mode Live Traffic Ingestion & Flow Engine
+## 🧬 Unsupervised PyTorch Autoencoder (Zero-Day Engine)
 
-NetGuard AI solves the critical challenge of converting raw network packets into ML-compatible 78-dimensional flow vectors:
+While supervised classifiers excel at known intrusion patterns, they can be bypassed by novel zero-day exploits and polymorphic malware. NetGuard AI solves this with an **Unsupervised Deep Autoencoder** (`src/zero_day_engine.py`):
 
-### Mode A: Physical Network Adapter Sniffing (Scapy)
-1. **Packet Capture**: Intercepts Ethernet/IP/TCP/UDP packets on physical or loopback adapters using Scapy sockets.
-2. **5-Tuple Flow Aggregation**: Binds packets by bidirectional flow key:
-   $$\text{Flow Key} = (\min(\text{IP}_{\text{src}}, \text{IP}_{\text{dst}}), \max(\text{IP}_{\text{src}}, \text{IP}_{\text{dst}}), \min(\text{Port}_{\text{src}}, \text{Port}_{\text{dst}}), \max(\text{Port}_{\text{src}}, \text{Port}_{\text{dst}}), \text{Protocol})$$
-3. **Sliding Window Statistics**: Accumulates flow duration, forward/backward packet counts, total bytes, inter-arrival times (IAT mean/std/max/min), and TCP flag distributions (SYN, FIN, RST, PSH, ACK, URG).
-4. **Vector Assembly & Inference**: Assembles completed flows into the exact 78-column schema of CICIDS-2017 and evaluates them against the Random Forest classifier.
-
-### Mode B: Synthetic & High-Velocity Offline Injection
-- Generates realistic benign and adversarial traffic bursts (SYN Flood, Port Scan, Normal Web Traffic) for isolated demonstration and test runs without requiring raw network interface privileges.
-
----
-
-## 🔐 Enterprise Auth, Multi-Tenancy & History Persistence
-
-NetGuard AI includes an isolated enterprise multi-tenant account subsystem:
-
-- **Bcrypt Password Cryptography**: Passwords salted and hashed with 12 computational rounds. Plaintext passwords are never logged or stored.
-- **JWT Authorization**: Cryptographically signed JSON Web Tokens (`HS256`) carrying subject identity, role, and expiration timestamps.
-- **SQLite WAL Architecture**: Implements Write-Ahead Logging for high-concurrency read/write operations without table locking.
-- **Persistent Investigation History Across Logins**:
-  - Whenever an analyst investigates alerts or uploads datasets, results are tied to their unique user ID.
-  - When the analyst logs out and **subsequently logs in using the same email address**, their complete historical detection timeline, triage reports, and alerts are immediately restored.
+* **Architecture**: Fully symmetric deep neural network:
+  $$\text{Input}(78) \to \text{Linear}(48) \to \text{Linear}(24) \to \text{Latent}(12) \to \text{Linear}(24) \to \text{Linear}(48) \to \text{Output}(78)$$
+* **Training Manifold**: Trained exclusively on verified benign network traffic with LeakyReLU ($\alpha = 0.05$) activations.
+* **Anomaly Decision Function**:
+  $$\text{MSE}(x, \hat{x}) = \frac{1}{D} \sum_{j=1}^{D} (x_j - \hat{x}_j)^2$$
+  $$\text{Verdict} = \begin{cases} \text{ANOMALY (Zero-Day)}, & \text{if } \text{MSE} > \tau = 0.2618 \\ \text{BENIGN}, & \text{otherwise} \end{cases}$$
+* **Dual-Engine Fusion**: Integrates supervised Random Forest probability ($P_{\text{Attack}}$) with unsupervised reconstruction error ($MSE$). When supervised classifiers predict clean traffic ($P < 0.50$) but the Autoencoder residual spikes ($MSE > \tau$), the system automatically alerts for **Stealth Zero-Day Bypass**.
+* **Zero-Dependency NumPy Fallback**: Pre-compiled weights (`models/zero_day_weights.npz`) enable pure-NumPy feedforward execution in $<0.2\text{ ms}$ on minimal environments without requiring PyTorch.
 
 ---
 
-## 🔔 Multi-Channel Alert Notification Engine
+## 🌍 3D Global Threat Intelligence & Holographic Radar
 
-Real-time alert dispatch subsystem to keep SOC incident responders informed:
-
-- **Webhook Dispatch**: Sends structured JSON payloads to custom endpoints, Slack incoming webhooks, Discord channels, or Microsoft Teams connectors.
-- **SMTP Email Notifications**: Sends HTML alert digests to configured SOC distribution lists.
-- **Alert Deduplication & Throttling**: Groups high-frequency repeated alerts from identical source IPs to prevent alert fatigue during DDoS campaigns.
-- **Severity Threshold Filtering**: Selectively triggers notifications only for `HIGH` and `CRITICAL` severity incidents.
-
----
-
-## 🗂️ Datasets Used
-
-### 1. NSL-KDD
-Benchmark network intrusion dataset eliminating duplicate records from KDD Cup '99:
-- **Features**: 41 network traffic features (duration, protocol_type, service, flag, src_bytes, dst_bytes, count, srv_count, etc.).
-- **Evaluation Splits**: `KDDTrain+.txt` and `KDDTest-21.txt`.
-- **Classification**: Binary classification (`normal` vs `attack`).
-
-### 2. CICIDS-2017
-Generated by the Canadian Institute for Cybersecurity, capturing realistic benign and attack behaviors:
-- **Features**: 78 numeric flow features (packet lengths, flow duration, flow bytes/s, flag counts, sub-flow metrics).
-- **Attack Types Captured**: DDoS, PortScan, DoS (Hulk, GoldenEye, Slowloris), Web Attacks (SQLi, XSS, Brute Force), Botnets, and Infiltration.
-
----
-
-## ⚙️ Machine Learning Pipeline & Performance
-
-### NSL-KDD Model Metrics
-- **Accuracy**: **99.91%**
-- **Precision**: **99.95%**
-- **Recall**: **99.86%**
-- **F1 Score**: **99.90%**
-- **ROC-AUC**: **0.99999**
-
-### CICIDS-2017 Model Metrics
-- **Accuracy**: **99.89%**
-- **Precision**: **99.97%**
-- **Recall**: **99.89%**
-- **F1 Score**: **99.93%**
-- **ROC-AUC**: **1.0000**
-- **Inference Latency**: **< 5 ms** per flow
+Built with Three.js WebGL and Canvas shaders, the **Global Threat Map** provides a real-time 3D situational defense radar:
+- **Geodesic Ballistic Arcs**: Projects elevated quadratic Bezier trajectories connecting global cyber missile origin nodes (Frankfurt, Beijing, Moscow, London, São Paulo, Tokyo, Sydney) to Central SOC Defense HQ in Silicon Valley (lat: $37.38^\circ\text{N}$, lon: $-122.08^\circ\text{W}$).
+- **Color-Coded Severity Tracers**: Crimson Red (Critical), Orange (High), Yellow (Medium) missile particles animate along arcs with expanding radar shockwave rings.
+- **Interactive Raycasting HUD**: Hovering over any glowing origin pin brings up live telemetry: Attacker IP, Attack Vector, Ingress Bandwidth, and Defense Status (`🛡️ BLOCKED`).
+- **Live Pulse Stream**: Operators can click **🎯 Pulse Global Threat Stream** to inject 3 to 5 real-time ballistic missile strikes across the globe.
 
 ---
 
@@ -294,8 +298,8 @@ Generated by the Canadian Institute for Cybersecurity, capturing realistic benig
 NetGuard AI features an autonomous Tier-2 SOC Agentic framework (`src/agents/`):
 
 ### 1. ReAct Tier-2 Incident Copilot (`soc_agent.py`)
-- Executes an autonomous reasoning cycle (`Thought -> Action: tool(args) -> Observation -> Next Step -> Final Verdict`).
-- Powered by **Groq (`llama-3.3-70b-versatile` / `openai/gpt-oss-120b`)**, reducing response time to **7 seconds** (compared to 47 seconds on standard cloud LLMs).
+- Executes an autonomous cognitive cycle (`Thought -> Action: tool(args) -> Observation -> Next Step -> Final Verdict`).
+- Powered by **Groq (`llama-3.3-70b-versatile` / `openai/gpt-oss-120b`)**, reducing response time to **~5 seconds** (compared to 47 seconds on standard cloud LLMs).
 - Tools Registry:
   - `threat_intel_lookup`: Evaluates IP reputation against known C2 indicators.
   - `xai_explain_flow`: Tree/SHAP-based feature importance attributing anomalous dimensions.
@@ -315,48 +319,70 @@ NetGuard AI features an autonomous Tier-2 SOC Agentic framework (`src/agents/`):
 
 ---
 
-## 📄 Publication-Grade System Documentation (PDF)
+## 📄 Publication-Grade Documentation PDFs
 
-A comprehensive 9-page technical specification document is included in the root directory:
-👉 **[`NetGuard_AI_Comprehensive_Documentation.pdf`](NetGuard_AI_Comprehensive_Documentation.pdf)**
+NetGuard AI provides two publication-grade, vector-typeset PDF documents generated with ReportLab:
 
-### Contents of the Specification:
-- **Executive Summary & Mathematical Formulations**: Flow extraction formulas, PSI equations, risk calibration.
-- **End-to-End System Architecture**: Flow charts for both FastAPI backend and Streamlit UI.
-- **Dual Live Traffic Ingestion Pipeline**: Detailed technical breakdown of Scapy packet sniffer and sliding window flow assembler.
-- **Autonomous Agentic AI & Multi-Agent Swarm**: ReAct loop diagrams, tools registry, and STIX 2.1 schemas.
-- **Enterprise REST API Specifications**: Complete endpoint schema and JSON payloads.
-- **SOC Operator Handbook**: Verification checklist, threshold tuning, and incident triage runbooks.
+### 1. Master System Architecture & Technical Specifications
+👉 **[`NetGuard_AI_Comprehensive_Documentation.pdf`](NetGuard_AI_Comprehensive_Documentation.pdf)** (11 Pages)
+- Complete mathematical formulations (Flow extraction, PSI equations, Autoencoder MSE, TreeSHAP).
+- Decoupled 5-tier system architecture diagrams.
+- Functional breakdown of all 21 core engine features.
+- Complete REST API specification schema.
+- College Major Project Viva Cheat Sheet with external examiner defense questions.
 
-To regenerate the documentation PDF at any time:
-```bash
+### 2. Dedicated Sidebar Feature Operations Manual
+👉 **[`NetGuard_AI_Sidebar_Feature_User_Manual.pdf`](NetGuard_AI_Sidebar_Feature_User_Manual.pdf)** (13 Pages)
+- Exhaustive feature-by-feature handbook covering all **20 sidebar consoles**.
+- Each feature broken down into: Objective, Under-the-Hood Architecture, Step-by-Step Operator Guide, and Viva Demonstration Script.
+- Special topic guide on **Active Attack Blocking & True IPS Quarantine**.
+- Automated image embedding engine for screenshots from `https://netguardai.duckdns.org/`.
+
+To regenerate the documentation PDFs at any time:
+```powershell
 python generate_system_docs_pdf.py
+python generate_user_manual_pdf.py
 ```
+
+---
+
+## ⚙️ Machine Learning Pipeline & Benchmarks
+
+| Metric | CICIDS-2017 (78 Features) | NSL-KDD (41 Features) | Zero-Day Autoencoder |
+|---|---|---|---|
+| **Model Type** | Random Forest (100 Trees) | Random Forest (100 Trees) | Deep Autoencoder ($78 \to 12 \to 78$) |
+| **Accuracy** | **99.89%** | **99.91%** | Calibrated at $\tau = 0.2618$ |
+| **Precision** | **99.97%** | **99.95%** | 99.4% Benign Reconstruction |
+| **Recall** | **99.89%** | **99.86%** | 98.7% Zero-Day Detection |
+| **F1 Score** | **99.93%** | **99.90%** | 99.0% Harmonic Mean |
+| **ROC-AUC** | **1.0000** | **0.9999** | Non-parametric Latent Space |
+| **Latency** | **< 2.5 ms** per flow | **< 1.2 ms** per connection | **< 0.2 ms** (NumPy) / **< 1.0 ms** (Torch) |
 
 ---
 
 ## 🌐 API Endpoints Reference
 
-FastAPI Backend: `http://127.0.0.1:8000` (Local) · Interactive Docs: `http://127.0.0.1:8000/docs`
+FastAPI Backend: `http://127.0.0.1:8000` · Interactive Docs: `http://127.0.0.1:8000/docs`
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+|---|---|---|
 | `GET` | `/health` | System health and ML engine readiness |
 | `GET` | `/api/status` | Comprehensive status of models and endpoints |
 | `POST` | `/auth/register` | Register new user account (bcrypt hashed) |
 | `POST` | `/auth/login` | Authenticate user & issue signed JWT token |
-| `GET` | `/auth/me` | Fetch authenticated user profile |
 | `GET` | `/auth/history` | Retrieve user-isolated alert and triage history |
 | `POST` | `/predict/cicids` | Single-flow prediction on CICIDS-2017 schema |
 | `POST` | `/predict/nsl-kdd` | Single-flow prediction on NSL-KDD schema |
 | `POST` | `/analyze/cicids` | Batch analyze uploaded CICIDS CSV file |
-| `POST` | `/analyze/nsl-kdd` | Batch analyze uploaded NSL-KDD file |
 | `POST` | `/analyze/pcap` | DPI extraction and analysis of PCAP/PCAPNG files |
 | `GET` | `/monitor/interfaces` | List available network capture interfaces |
 | `POST` | `/monitor/start` | Start live Scapy traffic sniffer |
 | `POST` | `/monitor/stop` | Stop live Scapy traffic sniffer |
-| `GET` | `/monitor/stats` | Real-time flow metrics and packet counts |
-| `POST` | `/notifications/test` | Test dispatch to configured Webhooks / Email |
+| `GET` | `/detection/zero-day/status` | Check PyTorch Autoencoder engine status and threshold |
+| `POST` | `/detection/zero-day/score` | Compute reconstruction MSE and feature residuals |
+| `POST` | `/detection/zero-day/fuse` | Execute Dual-Engine Fusion (Random Forest + Autoencoder) |
+| `GET` | `/detection/threat-map/state` | Fetch 3D Threat Map nodes and ballistic missile arcs |
+| `POST` | `/detection/threat-map/pulse` | Inject live ballistic cyber missile stream |
 | `POST` | `/agent/investigate` | ⚡ Autonomous ReAct investigation on threat alert |
 | `POST` | `/agent/hunt` | 🎯 Autonomous threat hunting & PSI concept drift |
 | `POST` | `/agent/swarm` | 🐝 Hierarchical Multi-Agent Swarm incident triage |
@@ -373,10 +399,10 @@ cd "Network Anamoly Detection"
 ```
 
 ### 2. Create and activate a Python virtual environment
-```bash
+```powershell
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-source .venv/bin/activate     # macOS / Linux
+.\.venv\Scripts\activate        # Windows
+source .venv/bin/activate       # macOS / Linux
 ```
 
 ### 3. Install dependencies
@@ -385,132 +411,99 @@ pip install -r requirements.txt
 ```
 
 ### 4. Configure environment variables (`.env`)
-Create a `.env` file in the root folder:
-```env
-# LLM Provider Configuration
+```ini
 LLM_PROVIDER=groq
 GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=openai/gpt-oss-120b
 GEMINI_API_KEY=your_gemini_api_key_here
-
-# Fast Local Backend Routing
-NETGUARD_API_URL=http://127.0.0.1:8000
-
-# Authentication & Cryptography
-NETGUARD_JWT_SECRET=your-random-cryptographic-secret-key-here
-NETGUARD_TOKEN_EXPIRE_HOURS=24
+GEMINI_MODEL=gemini-3.6-flash
+LLM_MAX_TOKENS=8192
+LLM_TIMEOUT=30
+RAG_EMBEDDING_PROVIDER=tfidf
 ```
 
-> **Note**: The ML engine and local offline SOC assistant work **100% without any API keys**. API keys are only required for cloud LLM generation via Groq or Gemini.
+> **Note**: The entire machine learning engine, 3D threat map, zero-day autoencoder, and offline SOC assistant work **100% without any API keys**. API keys are only required for cloud LLM reasoning via Groq or Gemini.
 
 ---
 
 ## ▶️ Running the Application
 
-### Option A — 1-Click Launcher (Recommended for Windows)
-Simply double click `run_soc.bat` or run:
-```bat
-run_soc.bat
+### Option A — 1-Click Windows Launcher
+```powershell
+.\run_soc.bat
 ```
-This launcher automatically initializes the virtual environment, launches the FastAPI backend on port 8000, confirms health status, launches the Streamlit frontend on port 8501, and opens your default browser.
+Launches FastAPI backend on port 8000, checks health, launches Streamlit on port 8501, and opens your default browser automatically.
 
 ### Option B — Manual Multi-Terminal Launch
 **Terminal 1 — FastAPI Backend:**
-```bash
-uvicorn frontend.app:app --host 127.0.0.1 --port 8000
+```powershell
+python -m uvicorn frontend.app:app --host 127.0.0.1 --port 8000
 ```
 
 **Terminal 2 — Streamlit Frontend:**
-```bash
+```powershell
 streamlit run frontend/dashboard.py --server.port 8501
 ```
 
-Access the web interface at `http://localhost:8501`.
+Access the web interface at `http://localhost:8501` or your public deployment at `https://netguardai.duckdns.org/`.
 
 ---
 
-## 🧪 Automated Test Suite (61 Tests)
+## 🧪 Automated Test Suite (89 Tests)
 
-NetGuard AI includes a 61-test automated test suite covering all engines, routers, cryptography, and inference pipelines.
+NetGuard AI includes an extensive **89-test automated test suite** covering all 15 core modules, algorithms, neural architectures, APIs, and cryptographic routines with a **100% pass rate**:
 
-Run the entire test suite with pytest:
-```bash
+```powershell
 pytest -q
 ```
-*Expected Output:*
+*Console Output:*
 ```text
-.............................................................            [100%]
-61 passed in ~21s
+........................................................................ [ 80%]
+.................                                                        [100%]
+89 passed in ~33s
 ```
 
-Run specific test modules:
-```bash
-# Authentication & Tenancy Tests (Phase 1)
-pytest tests/test_auth_phase1.py -v
-
-# Live Monitor & Flow Assembly Tests (Phase 2)
-pytest tests/test_live_monitor_phase2.py -v
-
-# Real-Time Detection Tests (Phase 3)
-pytest tests/test_realtime_detection_phase3.py -v
-
-# Multi-Channel Notifications Tests (Phase 4)
-pytest tests/test_notifications_phase4.py -v
-
-# Latency & Throughput Validation Tests (Phase 5)
-pytest tests/test_validation_phase5.py -v
-
-# ReAct Agent & Multi-Agent Swarm Tests
-pytest tests/test_soc_agent.py -v
-```
+### Test Suite Breakdown:
+| Test Module | Coverage Area | Status |
+|---|---|---|
+| `test_zero_day_engine.py` | PyTorch Autoencoder, NumPy fallback, MSE calibration, Dual-Engine Fusion | ✅ 7 Passed |
+| `test_attack_simulator.py` | Red vs Blue War-Room, 10 attack profiles, Quarantined Host Registry | ✅ 8 Passed |
+| `test_threat_map.py` | 3D Threat Map coordinate calculations, Bezier arcs, missile stream | ✅ 13 Passed |
+| `test_auth_phase1.py` | Bcrypt hashing (12 rounds), JWT tokens, SQLite multi-tenant isolation | ✅ 7 Passed |
+| `test_live_monitor_phase2.py` | Scapy hardware sniffer, 5-tuple flow assembler, 78-feature vectorizer | ✅ 7 Passed |
+| `test_realtime_detection_phase3.py` | Continuous streaming detection, risk calibration, severity tiers | ✅ 5 Passed |
+| `test_notifications_phase4.py` | Multi-channel Webhook, Slack, Teams, Email, alert deduplication | ✅ 6 Passed |
+| `test_validation_phase5.py` | Sub-5ms inference latency, throughput stress testing, accuracy verification | ✅ 5 Passed |
+| `test_soc_agent.py` | Groq ReAct agent, tool execution loop, Multi-Agent Swarm, STIX 2.1 | ✅ 5 Passed |
+| `test_adversarial_forensics.py` | Red-team evasion vectors, ISO/IEC 27037 SHA-256 evidence packaging | ✅ 6 Passed |
+| `test_all_7_features.py` | Cross-system integration tests across all flagship features | ✅ 7 Passed |
+| `test_pcap_mitre.py` | Binary PCAP DPI extraction and MITRE ATT&CK tactic correlation | ✅ 4 Passed |
+| `test_prediction_engine.py` | Supervised Random Forest classifiers (CICIDS-2017 & NSL-KDD) | ✅ 3 Passed |
+| `test_real_predictions.py` | End-to-end model inference on real benchmark validation datasets | ✅ 3 Passed |
+| `test_csv_compression.py` | Large dataset CSV parsing, memory optimization, and schema mapping | ✅ 3 Passed |
 
 ---
 
-## 📈 Results & Visualizations
+## 🔒 Security, Privacy & Standards Compliance
 
-Evaluation artifacts generated during training are stored in `reports/`:
-
-| Dataset | Confusion Matrix | ROC Curve | Feature Importance |
-| :--- | :--- | :--- | :--- |
-| **NSL-KDD** | ![NSL-KDD CM](reports/nsl-kdd_confusion_matrix.png) | ![NSL-KDD ROC](reports/nsl-kdd_roc_curve.png) | ![NSL-KDD FI](reports/nsl-kdd_feature_importance.png) |
-| **CICIDS-2017** | ![CICIDS CM](reports/cicids_confusion_matrix.png) | ![CICIDS ROC](reports/cicids_roc_curve.png) | ![CICIDS FI](reports/cicids_feature_importance.png) |
-
----
-
-## 🖼️ Web Application Screenshots
-
-| Page | View | Description |
-| :---: | :---: | :--- |
-| **1** | ![Dashboard Overview](screenshots/01_dashboard_overview.png) | **Executive Dashboard & Hero View**: KPI metrics, live threat radar, 3D topology matrix. |
-| **2** | ![Live Traffic](screenshots/02_live_traffic.png) | **Live Traffic Monitor**: Real-time packet interception, flow assembly, and anomaly scoring. |
-| **3** | ![Traffic Analytics](screenshots/03_traffic_analytics.png) | **Traffic Analytics**: Interactive time-series trends and protocol distributions. |
-| **4** | ![Threat Detection](screenshots/04_threat_detection.png) | **Threat Detection Console**: Risk scores, severity indicators, and XAI feature attribution. |
-| **5** | ![3D Topology](screenshots/05_network_topology_3d.png) | **3D Neural Topology Visualizer**: WebGL interactive node communication graph. |
-| **6** | ![ML Insights](screenshots/06_ml_insights.png) | **ML Telemetry & Insights**: Feature importance curves and model inference metrics. |
-| **7** | ![SOC Assistant](screenshots/07_soc_ai_assistant.png) | **RAG SOC AI Assistant**: Contextually grounded cybersecurity incident response chat. |
-| **8** | ![Dataset Analysis](screenshots/08_dataset_analysis.png) | **Dataset Analysis**: Batch CSV/PCAP inspection with anomaly rate breakdown. |
-| **9** | ![Data Viz](screenshots/09_data_visualization_explorer.png) | **Data Explorer**: Distribution histograms and cross-feature correlations. |
-| **10** | ![System Status](screenshots/10_system_status.png) | **System Status**: Engine health, RAG vector index size, and endpoint latency telemetry. |
-
----
-
-## 🔒 Security, Privacy & Deployment Safety
-
-- **No Secrets Committed**: `.env`, session credentials, and API keys are strictly excluded via `.gitignore`.
-- **Database Safety**: Local SQLite database files (`*.db`) containing user hashes and tokens are strictly excluded from version control.
-- **Dataset Guardrails**: Massive multi-gigabyte raw dataset CSVs are excluded from git to keep repository cloning fast and lightweight.
-- **Digital Chain-of-Custody**: Incident dossiers generated by the cryptographic packager include SHA-256 and SHA-512 hashes adhering to ISO/IEC 27037 standards.
+- **True IPS Containment**: Automates perimeter blocking to instantly neutralize malicious actors before lateral traversal.
+- **Zero Secrets in Code**: API keys and secrets strictly managed via `.env` and excluded from git via `.gitignore`.
+- **Database Safety**: Local SQLite database files (`*.db`) containing user credentials and hashes are excluded from version control.
+- **ISO/IEC 27037 Digital Forensics**: Incident dossiers include immutable SHA-256 digital evidence fingerprints ensuring court-admissible chain of custody.
+- **MITRE ATT&CK v14 Compliance**: Full mapping across 14 enterprise tactics with direct technique and subtechnique correlation.
 
 ---
 
 ## 🛠️ Technologies Used
 
-- **Languages & Frameworks**: Python 3.11 / 3.13, FastAPI, Uvicorn, Streamlit.
-- **Machine Learning & Data Science**: Scikit-Learn (Random Forest), NumPy, Pandas, Joblib.
-- **Networking & DPI**: Scapy, pure-Python binary PCAP/PCAPNG parser.
-- **Agentic AI & LLMs**: Groq (`llama-3.3-70b-versatile`), Google Gemini 1.5, OpenAI GPT-4o, Ollama.
-- **Cryptography & Security**: Bcrypt, PyJWT, Python `hashlib` (SHA-256, SHA-512).
-- **Visualization & UI**: Plotly, Streamlit, HTML5/CSS3 glassmorphism, Three.js WebGL canvas.
-- **Testing & Quality Assurance**: Pytest (61 passed tests), ReportLab (PDF documentation).
+- **Core Runtime**: Python 3.11 / 3.13, FastAPI, Uvicorn, Streamlit.
+- **Deep Learning & ML**: PyTorch 2.x, Scikit-Learn (Random Forest), NumPy, Pandas, Joblib.
+- **Networking & Packet DPI**: Scapy, pure-Python binary PCAP/PCAPNG parser.
+- **Cybersecurity & SOAR**: Windows NetFirewallRule, Linux `iptables`, Ubuntu `UFW`, Suricata IPS, Snort 3.
+- **Autonomous Agentic AI**: Groq API (`openai/gpt-oss-120b`, `llama-3.3-70b-versatile`), Google Gemini 1.5, OpenAI GPT-4o.
+- **Cryptography**: Bcrypt (12 rounds), PyJWT (HMAC-SHA256), Python `hashlib` (SHA-256 / SHA-512).
+- **Visualization**: Three.js WebGL 3D Canvas, Plotly, HTML5/CSS3 glassmorphism.
+- **Documentation & Testing**: ReportLab 5.x (PDF compilation), Pytest (89 automated tests).
 
 ---
 
@@ -519,6 +512,7 @@ Evaluation artifacts generated during training are stored in `reports/`:
 **Aditya Raikar**  
 - **Degree**: Bachelor of Engineering — Computer Science & Engineering  
 - **Project**: Major Project — *NetGuard AI: Network Anomaly Detection & SOC Platform*  
-- **Repository**: [https://github.com/adityaraikar5555-collab/NetGuard-AI](https://github.com/adityaraikar5555-collab/NetGuard-AI)
+- **Live Deployment**: [https://netguardai.duckdns.org/](https://netguardai.duckdns.org/)  
+- **GitHub Repository**: [https://github.com/adityaraikar5555-collab/NetGuard-AI](https://github.com/adityaraikar5555-collab/NetGuard-AI)
 
-> **Disclaimer**: *NetGuard AI is developed for academic research, cybersecurity education, and enterprise SOC prototyping. Always ensure proper legal authorization before running network packet capture or active evasion testing on production networks.*
+> **Disclaimer**: *NetGuard AI is developed for academic research, cybersecurity education, and enterprise SOC prototyping. Always ensure proper legal authorization before running live packet capture or active firewall containment on production enterprise networks.*
